@@ -9,8 +9,10 @@ type Store interface {
 	// Get returns the value for the given key.
 	Get(key []byte) (value []byte, err error)
 
-	// Set sets the value for the given key.
-	Put(key []byte, value []byte) (err error)
+	// Set sets the value for the given key
+	// When error is nil outputs true in the case of a successful insertion
+	// and false in the case of an update
+	Put(key []byte, value []byte) (inserted bool, err error)
 
 	// Delete deletes the value for the given key.
 	Delete(key []byte) (err error)
