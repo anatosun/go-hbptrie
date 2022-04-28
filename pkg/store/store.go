@@ -14,4 +14,7 @@ type Store interface {
 
 	// Delete deletes the value for the given key.
 	Delete(key []byte) (err error)
+
+	// Len returns the number of items in the store.
+	Len() uint64
 }
