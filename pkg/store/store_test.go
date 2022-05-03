@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"math/rand"
 	"os"
 	"path"
@@ -144,6 +145,20 @@ func TestInsert(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	for i := 0; i < size; i++ {
+		b := make([]byte, unsafe.Sizeof(array[i]))
+		actual, err := store.Get(b)
+		if err != nil {
+			t.Fatalf("Cannot get a value from store: %v", err)
+		}
+
+		if bytes.Compare(b, actual) != 0 {
+			t.Fatalf("expected %v, got %v\n", b, actual)
+		}
+	}
+}
+
 func TestRemove(t *testing.T) {
 
 	if store.Len() == 0 {
@@ -201,6 +216,9 @@ func TestUpdate(t *testing.T) {
 		t.Errorf("expected %d, got %d", expected, actual)
 		t.FailNow()
 	}
+
+	TestClose(t)
+	TestDeleteStore(t)
 }
 
 func TestInsert2Bytes(t *testing.T) {
@@ -250,4 +268,19 @@ func TestInsert2Bytes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot close the store: Error %v", err)
 	}
+}
+
+func TestSaveAndLoad(t *testing.T) {
+	if store == nil {
+		TestInit(t)
+	}
+
+	// Insert values
+	TestInsert(t)
+	// Close the store
+	TestClose(t)
+	// Open the same store again
+	TestInit(t)
+	// Compare the values
+	TestGet(t)
 }
