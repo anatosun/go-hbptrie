@@ -1,8 +1,6 @@
 package pool
 
-// Page is the unit of the Bufferpool
-type Page struct {
-}
+import "os"
 
 // Pool is an interface for a buffer pool
 type Pool interface {
@@ -13,4 +11,21 @@ type Pool interface {
 	EvictPages()
 	DeletePage(pageID uint16) error
 	UnpinPage(pageID uint16, dirty bool) error
+}
+
+type Bufferpool struct {
+	frames []*list
+	file   *os.File
+}
+
+func newBufferpool(file *os.File) *Bufferpool {
+	return &Bufferpool{file: file, frames: nil}
+}
+
+func (pool *Bufferpool) write(page *Page) error {
+	return nil
+}
+
+func (pool *Bufferpool) read(page *Page) error {
+	return nil
 }
