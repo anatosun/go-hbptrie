@@ -14,7 +14,7 @@ type Pool interface {
 }
 
 type Bufferpool struct {
-	frames []*list
+	frames []*List
 	file   *os.File
 }
 
@@ -28,4 +28,8 @@ func (pool *Bufferpool) write(page *Page) error {
 
 func (pool *Bufferpool) read(page *Page) error {
 	return nil
+}
+
+func (pool *Bufferpool) io() {
+
 }

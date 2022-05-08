@@ -1,20 +1,16 @@
 package pool
 
-var pageSize uint16 = 4096
+var PageSize uint16 = 4096
 
 // Page is the unit of the Bufferpool
 type Page struct {
-	id    uint64
-	prev  *Page
-	next  *Page
-	dirty bool
-	data  []byte
+	Id    uint64     // 8 byte
+	prev  *Page      // 8 byte
+	next  *Page      // 8 byte
+	Dirty bool       // 1 byte
+	Data  [4071]byte // 4071 byte (4096 - 8 - 8 - 8 - 1)
 }
 
-func (p *Page) Size() uint16 {
-	return pageSize
-}
-
-func NewPage() *Page {
-	return &Page{dirty: true, prev: nil, next: nil}
+func NewPage(id uint64) *Page {
+	return &Page{Id: id, Dirty: true, prev: nil, next: nil, Data: [4071]byte{}}
 }
