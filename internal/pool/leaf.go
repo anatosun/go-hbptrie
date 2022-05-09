@@ -17,12 +17,14 @@ func (n *Node) InsertEntryAt(at int, e Entry) error {
 	copy(n.Entries[at+1:], n.Entries[at:])
 	n.Entries[at] = e
 	n.NumberOfEntries++
+	n.Dirty = true
 	return nil
 }
 
 func (n *Node) Update(at int, v [8]byte) error {
 	if n.Entries[at].Value != v {
 		n.Entries[at].Value = v
+		n.Dirty = true
 	}
 	return nil
 }
@@ -34,6 +36,7 @@ func (n *Node) DeleteEntryAt(at int) (Entry, error) {
 	entry := n.Entries[at]
 	copy(n.Entries[at:], n.Entries[at+1:])
 	n.NumberOfEntries--
+	n.Dirty = true
 	return entry, nil
 }
 

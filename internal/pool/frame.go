@@ -1,5 +1,7 @@
 package pool
 
+import "hbtrie/internal/kverrors"
+
 type Frame struct {
 	head       *Page
 	tail       *Page
@@ -33,6 +35,7 @@ func NewFrame(allocation uint64) *Frame {
 		pages:   make(map[uint64]*Node),
 		dirties: make(map[uint64]*Node),
 	}
+	l.allocation = allocation
 	l.head.next = l.tail
 	l.tail.prev = l.head
 	l.cursor = 2
@@ -49,6 +52,9 @@ func (l *Frame) Query(id uint64) *Node {
 }
 
 func (l *Frame) NewNode() (*Node, error) {
+	if l.cursor >= l.allocation-1 {
+		return nil, &kverrors.BufferOverflowError{Max: l.allocation, Cursor: l.cursor}
+	}
 	l.cursor++
 	page := NewPage(l.cursor)
 	n := &Node{Page: page}

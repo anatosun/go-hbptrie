@@ -35,6 +35,7 @@ func (n *Node) InsertChildAt(at int, child *Node) error {
 	copy(n.Children[at+1:], n.Children[at:])
 	n.Children[at] = child.Id
 	n.NumberOfChildren++
+	n.Dirty = true
 	return nil
 }
 
