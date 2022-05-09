@@ -8,7 +8,7 @@ import (
 var store *BPlusTree
 var values map[[16]byte][8]byte
 
-const size = 1000000
+const size = 10000
 
 func TestInit(t *testing.T) {
 	store = NewBplusTree()
@@ -35,14 +35,19 @@ func TestInsert(t *testing.T) {
 	//	t.Logf("inserting %d random keys", size)
 	for key, value := range values {
 
-		_, err := store.Insert(key, value)
+		success, err := store.Insert(key, value)
 		if err != nil {
 			t.Errorf("while inserting to kv store(%d): %v", key, err)
 			t.FailNow()
 		}
+
+		if !success {
+			t.Errorf("should be able to insert key: %v", key)
+			t.FailNow()
+		}
 	}
 
-	expected := size
+	expected := len(values)
 	actual := int(store.Len())
 
 	if expected != actual {
@@ -52,38 +57,38 @@ func TestInsert(t *testing.T) {
 
 }
 
-// func TestUpdate(t *testing.T) {
+func TestUpdate(t *testing.T) {
 
-// 	if store.Len() == 0 {
-// 		TestInsert(t)
-// 	}
+	if store.Len() == 0 {
+		TestInsert(t)
+	}
+	step := 0
+	for key, value := range values {
 
-// 	for key, value := range values {
+		_, err := store.Search(key)
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+		success, err := store.Insert(key, value)
 
-// 		_, err := store.Search(key)
-// 		if err != nil {
-// 			t.Errorf("while searching for key %v: %v", key, err)
-// 			t.FailNow()
-// 		}
-// 		success, err := store.Insert(key, value)
+		if err != nil {
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
+			t.FailNow()
+		}
 
-// 		if err != nil {
-// 			t.Errorf("while inserting to kv store(%d): %v", key, err)
-// 			t.FailNow()
-// 		}
+		if success {
+			t.Errorf("[step %d] should not be able to insert duplicate key: %v", step, key)
+			t.FailNow()
+		}
+		step++
+	}
 
-// 		if success {
-// 			t.Errorf("should not be able to insert duplicate key: %v", key)
-// 			t.FailNow()
-// 		}
+	expected := len(values)
+	actual := int(store.Len())
 
-// 	}
-
-// 	expected := size
-// 	actual := int(store.Len())
-
-// 	if expected != actual {
-// 		t.Errorf("expected %d, got %d", expected, actual)
-// 		t.FailNow()
-// 	}
-// }
+	if expected != actual {
+		t.Errorf("expected %d, got %d", expected, actual)
+		t.FailNow()
+	}
+}
