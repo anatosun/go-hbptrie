@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"crypto/rand"
 	"encoding/binary"
 	"hbtrie/internal/kverrors"
 	"unsafe"
@@ -25,7 +24,13 @@ func NodeHeaderLen() int {
 	Prev := uint64(0)
 	NumberOfChildren := uint64(0)
 	NumberOfEntries := uint64(0)
-	return int(unsafe.Sizeof(id) + unsafe.Sizeof(Next) + unsafe.Sizeof(Prev) + unsafe.Sizeof(NumberOfChildren) + unsafe.Sizeof(NumberOfEntries))
+
+	return int(
+		unsafe.Sizeof(id) +
+			unsafe.Sizeof(Next) +
+			unsafe.Sizeof(Prev) +
+			unsafe.Sizeof(NumberOfChildren) +
+			unsafe.Sizeof(NumberOfEntries))
 
 }
 
@@ -47,36 +52,38 @@ func (n *Node) InsertChildAt(at int, child *Node) error {
 func (n *Node) MarshalBinary() ([]byte, error) {
 	capacity := int(PageSize) // 4KB
 	buf := make([]byte, capacity)
-	if _, err := rand.Read(buf); err != nil {
-		return buf, err
-	}
 	bin := binary.LittleEndian
 	bin.PutUint64(buf[0:8], n.Id)
 	bin.PutUint64(buf[8:16], n.NumberOfEntries)
 	bin.PutUint64(buf[16:24], n.NumberOfChildren)
+	if n.NumberOfEntries > 0 && n.NumberOfChildren > 0 {
+		return buf, &kverrors.InvalidNodeSizeError{NumberOfChildren: n.NumberOfChildren, NumberOfEntries: n.NumberOfEntries}
+	}
 	bin.PutUint64(buf[24:32], n.Next)
 	bin.PutUint64(buf[32:40], n.Prev)
+
 	cursor := 40
 	if cursor != int(NodeHeaderLen()) {
 		return buf, &kverrors.InvalidSizeError{Got: cursor, Should: int(NodeHeaderLen())}
 	}
-	if n.IsLeaf() {
-		for _, e := range n.Entries {
-			eb, err := e.MarshalEntry()
-			if err != nil {
-				return nil, err
-			}
-			for j := 0; j < len(eb); j++ {
-				buf[cursor+j] = eb[j]
-			}
-			cursor += EntryLen()
-			if cursor > capacity {
-				return buf, &kverrors.BufferOverflowError{Max: capacity, Cursor: cursor}
-			}
+
+	for i := 0; i < int(n.NumberOfEntries); i++ {
+		e := n.Entries[i]
+		eb, err := e.MarshalEntry()
+		if err != nil {
+			return nil, err
+		}
+		for j := 0; j < len(eb); j++ {
+			buf[cursor+j] = eb[j]
+		}
+		cursor += EntryLen()
+		if cursor > capacity {
+			return buf, &kverrors.BufferOverflowError{Max: capacity, Cursor: cursor}
 		}
 	}
 
-	for _, c := range n.Children {
+	for i := 0; i < int(n.NumberOfChildren); i++ {
+		c := n.Children[i]
 		bin.PutUint64(buf[cursor:cursor+8], c)
 		cursor += 8
 		if cursor > capacity {
@@ -101,12 +108,17 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	n.Id = bin.Uint64(data[0:8])
 	n.NumberOfEntries = bin.Uint64(data[8:16])
 	n.NumberOfChildren = bin.Uint64(data[16:24])
+	if n.NumberOfEntries > 0 && n.NumberOfChildren > 0 {
+		return &kverrors.InvalidNodeSizeError{NumberOfChildren: n.NumberOfChildren, NumberOfEntries: n.NumberOfEntries}
+	}
 	n.Next = bin.Uint64(data[24:32])
 	n.Prev = bin.Uint64(data[32:40])
+
 	cursor := 40
 	if cursor != int(NodeHeaderLen()) {
 		return &kverrors.InvalidSizeError{Got: cursor, Should: int(NodeHeaderLen())}
 	}
+
 	for i := 0; i < int(n.NumberOfEntries); i++ {
 		e := Entry{}
 		err := e.UnmarshalEntry(data[cursor : cursor+EntryLen()])
