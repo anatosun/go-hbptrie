@@ -58,7 +58,7 @@ func (l *frame) query(id uint64) *Node {
 }
 
 func (l *frame) newNode() (node *Node, full bool) {
-	if l.cursor >= l.allocation-1 {
+	if len(l.pages) >= int(l.allocation-1) {
 		return nil, true
 	}
 	l.cursor++
@@ -67,4 +67,12 @@ func (l *frame) newNode() (node *Node, full bool) {
 	l.pages[n.Id] = n
 	l.push(n.Page)
 	return n, false
+}
+
+func (l *frame) evictTail() *Node {
+	tail := l.tail
+	l.pop(l.tail)
+	node := l.pages[tail.Id]
+	delete(l.pages, tail.Id)
+	return node
 }
