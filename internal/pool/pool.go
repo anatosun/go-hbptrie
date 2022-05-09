@@ -26,7 +26,7 @@ type Bufferpool struct {
 // The read/write to disk will be performed from/to the given file.
 // The allocation size is the number of pages that will be allocated for each frame before IO operations.
 func NewBufferpool(file *os.File, allocation uint64) *Bufferpool {
-	return &Bufferpool{file: file, frames: make(map[uint64]*frame)}
+	return &Bufferpool{file: file, frames: make(map[uint64]*frame), allocation: allocation}
 }
 
 func (pool *Bufferpool) write(frameId uint64, page *Node) error {
@@ -40,7 +40,7 @@ func (pool *Bufferpool) write(frameId uint64, page *Node) error {
 		return err
 	}
 	if nbytes != len(data) {
-		return kverrors.PartialWriteError{Total: len(data), Written: nbytes}
+		return &kverrors.PartialWriteError{Total: len(data), Written: nbytes}
 	}
 	return nil
 
@@ -66,7 +66,6 @@ func (pool *Bufferpool) Register() uint64 {
 	for pool.frames[r] != nil {
 		r++
 	}
-
 	pool.frames[r] = newFrame(pool.allocation)
 	return r
 }
@@ -102,7 +101,7 @@ func (pool *Bufferpool) NewNode(frameId uint64) (node *Node, err error) {
 		return nil, &kverrors.UnregisteredError{}
 	}
 
-	var full bool
+	full := false
 	for node, full = frame.newNode(); full; {
 		tail := frame.evictTail()
 		pool.write(frameId, tail)
