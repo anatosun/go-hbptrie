@@ -42,7 +42,7 @@ func (n *Node) DeleteEntryAt(at int) (Entry, error) {
 
 func (n *Node) Search(key [16]byte) (int, bool) {
 	lower := 0
-	upper := n.NumberOfEntries - 1
+	upper := int(n.NumberOfEntries - 1)
 	var cursor int
 	for lower <= upper {
 		cursor = (upper + lower) / 2
