@@ -9,7 +9,6 @@ type BPlusTree struct {
 	order  uint64 // number of Entries per leaf
 	fanout uint64 // number of children per internal node
 	list   *pool.List
-	nodes  map[uint64]*pool.Node
 	root   *pool.Node
 	size   int
 }
@@ -17,7 +16,6 @@ type BPlusTree struct {
 func NewBplusTree() *BPlusTree {
 
 	bpt := &BPlusTree{}
-	bpt.nodes = make(map[uint64]*pool.Node)
 	bpt.list = pool.NewList()
 	root, err := bpt.allocate()
 	if err != nil {
@@ -27,7 +25,6 @@ func NewBplusTree() *BPlusTree {
 	if err != nil {
 		panic(err)
 	}
-	bpt.nodes[bpt.root.Id] = bpt.root
 
 	bpt.order = 75
 	bpt.fanout = 75
