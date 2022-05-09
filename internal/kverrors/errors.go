@@ -1,6 +1,8 @@
 package kverrors
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type KeyNotFoundError struct {
 	Value interface{}
@@ -78,4 +80,13 @@ type IndexOutOfRangeError struct {
 
 func (err *IndexOutOfRangeError) Error() string {
 	return fmt.Sprintf("index %v out of range, length %v", err.Index, err.Length)
+}
+
+type InvalidNodeSizeError struct {
+	NumberOfChildren interface{}
+	NumberOfEntries  interface{}
+}
+
+func (err *InvalidNodeSizeError) Error() string {
+	return fmt.Sprintf("invalid node size: children (%d) and entries (%d) cannot both be superior to 0", err.NumberOfChildren, err.NumberOfEntries)
 }
