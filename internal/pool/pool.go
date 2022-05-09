@@ -14,7 +14,7 @@ type Pool interface {
 }
 
 type Bufferpool struct {
-	frames []*List
+	frames []*Frame
 	file   *os.File
 }
 
