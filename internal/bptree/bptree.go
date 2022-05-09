@@ -8,15 +8,15 @@ import (
 type BPlusTree struct {
 	order  uint64 // number of Entries per leaf
 	fanout uint64 // number of children per internal node
-	list   *pool.List
+	frame  *pool.Frame
 	root   *pool.Node
 	size   int
 }
 
-func NewBplusTree() *BPlusTree {
+func NewBplusTree(frame *pool.Frame) *BPlusTree {
 
 	bpt := &BPlusTree{}
-	bpt.list = pool.NewList()
+	bpt.frame = frame
 	root, err := bpt.allocate()
 	if err != nil {
 		panic(err)
