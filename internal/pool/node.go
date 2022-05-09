@@ -14,8 +14,8 @@ type Node struct {
 	Prev             uint64      // 8 byte
 	Children         [150]uint64 // 1200 byte
 	Entries          [150]Entry  // 3600 byte
-	NumberOfChildren int
-	NumberOfEntries  int
+	NumberOfChildren uint64      // 8 byte
+	NumberOfEntries  uint64      // 8 byte
 }
 
 func NodeHeaderLen() int {
@@ -23,8 +23,10 @@ func NodeHeaderLen() int {
 	id := uint64(0)
 	Next := uint64(0)
 	Prev := uint64(0)
+	NumberOfChildren := uint64(0)
+	NumberOfEntries := uint64(0)
+	return int(unsafe.Sizeof(id) + unsafe.Sizeof(Next) + unsafe.Sizeof(Prev) + unsafe.Sizeof(NumberOfChildren) + unsafe.Sizeof(NumberOfEntries))
 
-	return int(unsafe.Sizeof(id) + unsafe.Sizeof(Next) + unsafe.Sizeof(Prev))
 }
 
 func (n *Node) InsertChildAt(at int, child *Node) error {
@@ -50,11 +52,11 @@ func (n *Node) MarshalBinary() ([]byte, error) {
 	}
 	bin := binary.LittleEndian
 	bin.PutUint64(buf[0:8], n.Id)
-	// buf[8] = byte(len(n.entries))  // 9th byte
-	// buf[9] = byte(len(n.Children)) // 10th byte (will be 0 for leaf)
-	bin.PutUint64(buf[8:16], n.Next)
-	bin.PutUint64(buf[16:24], n.Prev)
-	cursor := 24
+	bin.PutUint64(buf[8:16], n.NumberOfEntries)
+	bin.PutUint64(buf[16:24], n.NumberOfChildren)
+	bin.PutUint64(buf[24:32], n.Next)
+	bin.PutUint64(buf[32:40], n.Prev)
+	cursor := 40
 	if cursor != int(NodeHeaderLen()) {
 		return buf, &kverrors.InvalidSizeError{Got: cursor, Should: int(NodeHeaderLen())}
 	}
@@ -97,14 +99,15 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	n.Dirty = true
 	bin := binary.LittleEndian
 	n.Id = bin.Uint64(data[0:8])
-
-	n.Next = bin.Uint64(data[8:16])
-	n.Prev = bin.Uint64(data[16:24])
-	cursor := 24
+	n.NumberOfEntries = bin.Uint64(data[8:16])
+	n.NumberOfChildren = bin.Uint64(data[16:24])
+	n.Next = bin.Uint64(data[24:32])
+	n.Prev = bin.Uint64(data[32:40])
+	cursor := 40
 	if cursor != int(NodeHeaderLen()) {
 		return &kverrors.InvalidSizeError{Got: cursor, Should: int(NodeHeaderLen())}
 	}
-	for i := 0; i < len(n.Entries); i++ {
+	for i := 0; i < int(n.NumberOfEntries); i++ {
 		e := Entry{}
 		err := e.UnmarshalEntry(data[cursor : cursor+EntryLen()])
 		if err != nil {
@@ -114,7 +117,7 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 		cursor += EntryLen()
 	}
 
-	for i := 0; i < len(n.Entries); i++ {
+	for i := 0; i < int(n.NumberOfChildren); i++ {
 		n.Children[i] = bin.Uint64(data[cursor : cursor+8])
 		cursor += 8
 	}
