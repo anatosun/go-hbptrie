@@ -12,7 +12,7 @@ var values map[[16]byte][8]byte
 const size = 10000
 
 func TestInit(t *testing.T) {
-	store = NewBplusTree(pool.NewFrame(uint64(size)))
+	store = NewBplusTree(pool.NewBufferpool(nil, uint64(size)))
 	values = make(map[[16]byte][8]byte)
 	h := sha1.New()
 

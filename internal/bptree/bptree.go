@@ -6,17 +6,19 @@ import (
 )
 
 type BPlusTree struct {
-	order  uint64 // number of Entries per leaf
-	fanout uint64 // number of children per internal node
-	frame  *pool.Frame
-	root   *pool.Node
-	size   int
+	order   uint64 // number of Entries per leaf
+	fanout  uint64 // number of children per internal node
+	pool    *pool.Bufferpool
+	frameId uint64
+	root    *pool.Node
+	size    int
 }
 
-func NewBplusTree(frame *pool.Frame) *BPlusTree {
+func NewBplusTree(pool *pool.Bufferpool) *BPlusTree {
 
 	bpt := &BPlusTree{}
-	bpt.frame = frame
+	bpt.pool = pool
+	bpt.frameId = pool.Register()
 	root, err := bpt.allocate()
 	if err != nil {
 		panic(err)
