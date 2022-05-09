@@ -96,3 +96,12 @@ type UnregisteredError struct{}
 func (err *UnregisteredError) Error() string {
 	return "the frame id provided doesn't match any registered frame, please register first"
 }
+
+type PartialWriteError struct {
+	Total   int
+	Written int
+}
+
+func (err *PartialWriteError) Error() string {
+	return fmt.Sprintf("partial write: %d/%d", err.Written, err.Total)
+}
