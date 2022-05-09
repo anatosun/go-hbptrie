@@ -90,3 +90,9 @@ type InvalidNodeSizeError struct {
 func (err *InvalidNodeSizeError) Error() string {
 	return fmt.Sprintf("invalid node size: children (%d) and entries (%d) cannot both be superior to 0", err.NumberOfChildren, err.NumberOfEntries)
 }
+
+type UnregisteredError struct{}
+
+func (err *UnregisteredError) Error() string {
+	return "the frame id provided doesn't match any registered frame, please register first"
+}
