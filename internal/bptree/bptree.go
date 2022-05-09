@@ -147,13 +147,13 @@ func (bpt *BPlusTree) split(pID, nID, siblingID uint64, i int) error {
 func (bpt *BPlusTree) splitNode(left, middle, right *pool.Node, i int) error {
 	parentKey := middle.Entries[bpt.fanout-1]
 	copy(right.Entries[:], middle.Entries[:bpt.fanout])
-	right.NumberOfEntries = int(bpt.fanout - 1)
+	right.NumberOfEntries = bpt.fanout - 1
 	copy(middle.Entries[:], middle.Entries[bpt.fanout:])
-	middle.NumberOfEntries = int(bpt.fanout)
+	middle.NumberOfEntries = bpt.fanout
 	copy(right.Children[:], middle.Children[:bpt.fanout])
-	right.NumberOfChildren = int(bpt.fanout)
+	right.NumberOfChildren = bpt.fanout
 	copy(middle.Children[:], middle.Children[bpt.fanout:])
-	middle.NumberOfChildren = int(bpt.fanout)
+	middle.NumberOfChildren = bpt.fanout
 	err := left.InsertChildAt(i, right)
 	if err != nil {
 		return err
@@ -172,9 +172,9 @@ func (bpt *BPlusTree) splitLeaf(left, middle, right *pool.Node, i int) error {
 	middle.Next = right.Id
 
 	copy(right.Entries[:], middle.Entries[bpt.order:])
-	right.NumberOfEntries = int(bpt.order - 1)
+	right.NumberOfEntries = bpt.order - 1
 	copy(middle.Entries[:], middle.Entries[:bpt.order])
-	middle.NumberOfEntries = int(bpt.order)
+	middle.NumberOfEntries = bpt.order
 	err := left.InsertChildAt(i+1, right)
 	if err != nil {
 		return err

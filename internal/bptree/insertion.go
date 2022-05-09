@@ -140,7 +140,7 @@ func (bpt *BPlusTree) insertInternal(id uint64, e pool.Entry) (bool, error) {
 
 func (bpt *BPlusTree) full(n *pool.Node) bool {
 	if n.IsLeaf() {
-		return n.NumberOfEntries == int((2*bpt.fanout)-1)
+		return n.NumberOfEntries == (2*bpt.fanout)-1
 	}
-	return n.NumberOfEntries == int((2*bpt.order)-1)
+	return n.NumberOfEntries == (2*bpt.order)-1
 }
