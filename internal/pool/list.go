@@ -1,13 +1,11 @@
 package pool
 
-import "fmt"
-
 type List struct {
 	head    *Page
 	tail    *Page
-	pages   map[uint64]*Page
-	dirties map[uint64]*Page
-	cursor  int
+	pages   map[uint64]*Node
+	dirties map[uint64]*Node
+	cursor  uint64
 }
 
 func (l *List) push(p *Page) {
@@ -33,8 +31,8 @@ func NewList() *List {
 	l := &List{
 		head:    NewPage(1),
 		tail:    NewPage(preaollocation),
-		pages:   make(map[uint64]*Page),
-		dirties: make(map[uint64]*Page),
+		pages:   make(map[uint64]*Node),
+		dirties: make(map[uint64]*Node),
 	}
 	l.head.next = l.tail
 	l.tail.prev = l.head
@@ -42,16 +40,20 @@ func NewList() *List {
 	return l
 }
 
-func (l *List) Query(id uint64) *Page {
-	fmt.Println("query of ", id)
+func (l *List) Query(id uint64) *Node {
+
+	if p, ok := l.pages[id]; ok {
+		l.boost(p.Page)
+	}
 
 	return l.pages[id]
 }
 
-func (l *List) Allocate() (*Page, error) {
+func (l *List) NewNode() (*Node, error) {
 	l.cursor++
-	p := NewPage(uint64(l.cursor))
-	l.pages[p.Id] = p
-	l.push(p)
-	return p, nil
+	page := NewPage(l.cursor)
+	n := &Node{Page: page}
+	l.pages[n.Id] = n
+	l.push(n.Page)
+	return n, nil
 }

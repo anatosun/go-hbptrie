@@ -1,4 +1,4 @@
-package bptree
+package operations
 
 import "bytes"
 

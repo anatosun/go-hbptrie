@@ -1,7 +1,12 @@
 package bptree
 
-func (bpt *BPlusTree) insert(e entry) (bool, error) {
-	if bpt.root.full(int(bpt.order), int(bpt.fanout)) {
+import (
+	"hbtrie/internal/operations"
+	"hbtrie/internal/pool"
+)
+
+func (bpt *BPlusTree) insert(e pool.Entry) (bool, error) {
+	if bpt.full(bpt.root) {
 
 		id1, errAlloc1 := bpt.allocate()
 		id2, errAlloc2 := bpt.allocate()
@@ -13,21 +18,21 @@ func (bpt *BPlusTree) insert(e entry) (bool, error) {
 			return false, errAlloc2
 		}
 
-		n1, err_fetching_1 := bpt.where(id1)
-		n2, err_fetching_2 := bpt.where(id2)
+		n1, errFetching1 := bpt.where(id1)
+		n2, errFetching2 := bpt.where(id2)
 
-		if err_fetching_1 != nil {
-			return false, err_fetching_1
+		if errFetching1 != nil {
+			return false, errFetching1
 		}
-		if err_fetching_2 != nil {
-			return false, err_fetching_2
+		if errFetching2 != nil {
+			return false, errFetching2
 		}
 
 		newRoot := n1
 		rightSibling := n2
 		oldRoot := bpt.root
 
-		newRoot.insertChildAt(0, oldRoot)
+		newRoot.InsertChildAt(0, oldRoot)
 		bpt.root = newRoot
 
 		if err := bpt.split(newRoot.Id, oldRoot.Id, rightSibling.Id, 0); err != nil {
@@ -39,38 +44,38 @@ func (bpt *BPlusTree) insert(e entry) (bool, error) {
 	return bpt.path(bpt.root.Id, e)
 }
 
-func (bpt *BPlusTree) path(id uint64, e entry) (bool, error) {
+func (bpt *BPlusTree) path(id uint64, e pool.Entry) (bool, error) {
 
 	node, err := bpt.where(id)
 	if err != nil {
 		return false, err
 	}
 
-	if node.isLeaf() {
+	if node.IsLeaf() {
 		return bpt.insertLeaf(id, e)
 	}
 
 	return bpt.insertInternal(id, e)
 }
 
-func (bpt *BPlusTree) insertLeaf(id uint64, e entry) (bool, error) {
+func (bpt *BPlusTree) insertLeaf(id uint64, e pool.Entry) (bool, error) {
 
 	n, err := bpt.where(id)
 	if err != nil {
 		return false, err
 	}
 
-	at, found := n.search(e.key)
+	at, found := n.Search(e.Key)
 
 	if found {
-		err := n.update(at, e.value)
+		err := n.Update(at, e.Value)
 		if err != nil {
 			return false, err
 		}
 		return false, err
 	}
 
-	err = n.insertEntryAt(at, e)
+	err = n.InsertEntryAt(at, e)
 	if err != nil {
 		return false, err
 	}
@@ -78,19 +83,19 @@ func (bpt *BPlusTree) insertLeaf(id uint64, e entry) (bool, error) {
 	return true, err
 }
 
-func (bpt *BPlusTree) insertInternal(id uint64, e entry) (bool, error) {
+func (bpt *BPlusTree) insertInternal(id uint64, e pool.Entry) (bool, error) {
 
 	node, err := bpt.where(id)
 	if err != nil {
 		return false, err
 	}
 
-	at, found := node.search(e.key)
+	at, found := node.Search(e.Key)
 	if found {
 		at++
 	}
 
-	childID := node.children[at]
+	childID := node.Children[at]
 
 	child, err := bpt.where(childID)
 
@@ -99,7 +104,7 @@ func (bpt *BPlusTree) insertInternal(id uint64, e entry) (bool, error) {
 		return false, err
 	}
 
-	if child.full(int(bpt.order), int(bpt.fanout)) {
+	if bpt.full(child) {
 
 		newid, err := bpt.allocate()
 		if err != nil {
@@ -118,9 +123,9 @@ func (bpt *BPlusTree) insertInternal(id uint64, e entry) (bool, error) {
 			return false, err
 		}
 
-		if Compare(e.key, node.entries[at].key) >= 0 {
+		if operations.Compare(e.Key, node.Entries[at].Key) >= 0 {
 
-			newChildID := node.children[at+1]
+			newChildID := node.Children[at+1]
 			child, err = bpt.where(newChildID)
 
 			if err != nil {
@@ -131,4 +136,11 @@ func (bpt *BPlusTree) insertInternal(id uint64, e entry) (bool, error) {
 		}
 	}
 	return bpt.path(child.Id, e)
+}
+
+func (bpt *BPlusTree) full(n *pool.Node) bool {
+	if n.IsLeaf() {
+		return n.NumberOfEntries == int((2*bpt.fanout)-1)
+	}
+	return n.NumberOfEntries == int((2*bpt.order)-1)
 }

@@ -1,22 +1,23 @@
 package bptree
 
 import (
+	"hbtrie/internal/kverrors"
 	"hbtrie/internal/pool"
 )
 
 type BPlusTree struct {
-	order  uint64 // number of entries per leaf
+	order  uint64 // number of Entries per leaf
 	fanout uint64 // number of children per internal node
 	list   *pool.List
-	nodes  map[uint64]*node
-	root   *node
+	nodes  map[uint64]*pool.Node
+	root   *pool.Node
 	size   int
 }
 
 func NewBplusTree() *BPlusTree {
 
 	bpt := &BPlusTree{}
-	bpt.nodes = make(map[uint64]*node)
+	bpt.nodes = make(map[uint64]*pool.Node)
 	bpt.list = pool.NewList()
 	root, err := bpt.allocate()
 	if err != nil {
@@ -28,8 +29,8 @@ func NewBplusTree() *BPlusTree {
 	}
 	bpt.nodes[bpt.root.Id] = bpt.root
 
-	bpt.order = 80
-	bpt.fanout = 80
+	bpt.order = 75
+	bpt.fanout = 75
 
 	return bpt
 }
@@ -37,7 +38,7 @@ func NewBplusTree() *BPlusTree {
 // serves to put a key/value pair in the B+ tree
 func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err error) {
 
-	e := entry{key: key, value: value}
+	e := pool.Entry{Key: key, Value: value}
 
 	success, err = bpt.insert(e)
 
@@ -62,17 +63,17 @@ func (bpt *BPlusTree) Remove(key [16]byte) (value *[8]byte, err error) {
 			return nil, err
 		}
 
-		e, err := node.deleteEntryAt(at)
+		e, err := node.DeleteEntryAt(at)
 
 		if err != nil {
 			return nil, err
 		}
 		bpt.size--
 
-		return &e.value, err
+		return &e.Value, err
 	}
 
-	return nil, &KeyNotFoundError{Value: key}
+	return nil, &kverrors.KeyNotFoundError{Value: key}
 
 }
 
@@ -86,10 +87,10 @@ func (bpt *BPlusTree) Search(key [16]byte) (*[8]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &n.entries[at].value, err
+		return &n.Entries[at].Value, err
 	}
 
-	return nil, &KeyNotFoundError{Value: key}
+	return nil, &kverrors.KeyNotFoundError{Value: key}
 
 }
 
@@ -104,16 +105,16 @@ func (bpt *BPlusTree) search(id uint64, key [16]byte) (child uint64, at int, fou
 		return 0, 0, false, err
 	}
 
-	at, found = node.search(key)
+	at, found = node.Search(key)
 
-	if node.isLeaf() {
+	if node.IsLeaf() {
 		return id, at, found, nil
 	}
 
 	if found {
 		at++
 	}
-	childID := node.children[at]
+	childID := node.Children[at]
 
 	return bpt.search(childID, key)
 }
@@ -136,7 +137,7 @@ func (bpt *BPlusTree) split(pID, nID, siblingID uint64, i int) error {
 		return err
 	}
 
-	if n.isLeaf() {
+	if n.IsLeaf() {
 		bpt.splitLeaf(p, n, sibling, i)
 	} else {
 		bpt.splitNode(p, n, sibling, i)
@@ -146,21 +147,21 @@ func (bpt *BPlusTree) split(pID, nID, siblingID uint64, i int) error {
 }
 
 // split the (internal) node into the given three nodes
-func (bpt *BPlusTree) splitNode(left, middle, right *node, i int) error {
-	parentKey := middle.entries[bpt.fanout-1]
-	copy(right.entries[:], middle.entries[:bpt.fanout])
-	right.numberOfEntries = int(bpt.fanout - 1)
-	copy(middle.entries[:], middle.entries[bpt.fanout:])
-	middle.numberOfEntries = int(bpt.fanout)
-	copy(right.children[:], middle.children[:bpt.fanout])
-	right.numberOfChildren = int(bpt.fanout)
-	copy(middle.children[:], middle.children[bpt.fanout:])
-	middle.numberOfChildren = int(bpt.fanout)
-	err := left.insertChildAt(i, right)
+func (bpt *BPlusTree) splitNode(left, middle, right *pool.Node, i int) error {
+	parentKey := middle.Entries[bpt.fanout-1]
+	copy(right.Entries[:], middle.Entries[:bpt.fanout])
+	right.NumberOfEntries = int(bpt.fanout - 1)
+	copy(middle.Entries[:], middle.Entries[bpt.fanout:])
+	middle.NumberOfEntries = int(bpt.fanout)
+	copy(right.Children[:], middle.Children[:bpt.fanout])
+	right.NumberOfChildren = int(bpt.fanout)
+	copy(middle.Children[:], middle.Children[bpt.fanout:])
+	middle.NumberOfChildren = int(bpt.fanout)
+	err := left.InsertChildAt(i, right)
 	if err != nil {
 		return err
 	}
-	err = left.insertEntryAt(i, parentKey)
+	err = left.InsertEntryAt(i, parentKey)
 	if err != nil {
 		return err
 	}
@@ -168,20 +169,20 @@ func (bpt *BPlusTree) splitNode(left, middle, right *node, i int) error {
 }
 
 // split the leaf into the given three nodes
-func (bpt *BPlusTree) splitLeaf(left, middle, right *node, i int) error {
-	right.next = middle.next
-	right.prev = middle.Id
-	middle.next = right.Id
+func (bpt *BPlusTree) splitLeaf(left, middle, right *pool.Node, i int) error {
+	right.Next = middle.Next
+	right.Prev = middle.Id
+	middle.Next = right.Id
 
-	copy(right.entries[:], middle.entries[bpt.order:])
-	right.numberOfEntries = int(bpt.order - 1)
-	copy(middle.entries[:], middle.entries[:bpt.order])
-	middle.numberOfEntries = int(bpt.order)
-	err := left.insertChildAt(i+1, right)
+	copy(right.Entries[:], middle.Entries[bpt.order:])
+	right.NumberOfEntries = int(bpt.order - 1)
+	copy(middle.Entries[:], middle.Entries[:bpt.order])
+	middle.NumberOfEntries = int(bpt.order)
+	err := left.InsertChildAt(i+1, right)
 	if err != nil {
 		return err
 	}
-	err = left.insertEntryAt(i, right.entries[0])
+	err = left.InsertEntryAt(i, right.Entries[0])
 	if err != nil {
 		return err
 	}

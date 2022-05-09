@@ -1,4 +1,4 @@
-package bptree
+package kverrors
 
 import "fmt"
 
