@@ -6,13 +6,13 @@ import (
 	"unsafe"
 )
 
-// Node is the unit of the B+ tree and is 4843 bytes long
+// Node is the unit of the B+ tree and is 3897 bytes long
 type Node struct {
 	*Page                        // 25 byte
 	Next             uint64      // 8 byte
 	Prev             uint64      // 8 byte
-	Children         [150]uint64 // 1200 byte
-	Entries          [150]Entry  // 3600 byte
+	Children         [120]uint64 // 960 byte
+	Entries          [120]Entry  // 2880 byte
 	NumberOfChildren uint64      // 8 byte
 	NumberOfEntries  uint64      // 8 byte
 }
@@ -56,9 +56,9 @@ func (n *Node) MarshalBinary() ([]byte, error) {
 	bin.PutUint64(buf[0:8], n.Id)
 	bin.PutUint64(buf[8:16], n.NumberOfEntries)
 	bin.PutUint64(buf[16:24], n.NumberOfChildren)
-	if n.NumberOfEntries > 0 && n.NumberOfChildren > 0 {
-		return buf, &kverrors.InvalidNodeSizeError{NumberOfChildren: n.NumberOfChildren, NumberOfEntries: n.NumberOfEntries}
-	}
+	// if n.NumberOfEntries > 0 && n.NumberOfChildren > 0 {
+	// 	return buf, &kverrors.InvalidNodeSizeError{NumberOfChildren: n.NumberOfChildren, NumberOfEntries: n.NumberOfEntries}
+	// }
 	bin.PutUint64(buf[24:32], n.Next)
 	bin.PutUint64(buf[32:40], n.Prev)
 
@@ -108,9 +108,9 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	n.Id = bin.Uint64(data[0:8])
 	n.NumberOfEntries = bin.Uint64(data[8:16])
 	n.NumberOfChildren = bin.Uint64(data[16:24])
-	if n.NumberOfEntries > 0 && n.NumberOfChildren > 0 {
-		return &kverrors.InvalidNodeSizeError{NumberOfChildren: n.NumberOfChildren, NumberOfEntries: n.NumberOfEntries}
-	}
+	// if n.NumberOfEntries > 0 && n.NumberOfChildren > 0 {
+	// 	return &kverrors.InvalidNodeSizeError{NumberOfChildren: n.NumberOfChildren, NumberOfEntries: n.NumberOfEntries}
+	// }
 	n.Next = bin.Uint64(data[24:32])
 	n.Prev = bin.Uint64(data[32:40])
 
