@@ -21,4 +21,4 @@ In the following lines is briefly described the work we plan to do during the fo
 ## Third milestone
 
 - Implementing in-memory write buffer index
-- Implementing the disk park
+- Implementing the disk part
