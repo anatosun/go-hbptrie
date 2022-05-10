@@ -191,6 +191,8 @@ func (bpt *BPlusTree) splitLeaf(left, middle, right *pool.Node, i int) error {
 
 }
 
+// insert the key/value pair in the tree.
+// It may rebalance the tree by splitting nodes if necessary.
 func (bpt *BPlusTree) insert(e pool.Entry) (bool, error) {
 	if bpt.full(bpt.root) {
 
@@ -230,6 +232,7 @@ func (bpt *BPlusTree) insert(e pool.Entry) (bool, error) {
 	return bpt.path(bpt.root.Id, e)
 }
 
+// path walks the tree to find the node where the key should be inserted.
 func (bpt *BPlusTree) path(id uint64, e pool.Entry) (bool, error) {
 
 	node, err := bpt.where(id)
@@ -244,6 +247,7 @@ func (bpt *BPlusTree) path(id uint64, e pool.Entry) (bool, error) {
 	return bpt.insertInternal(id, e)
 }
 
+// insertLeaf inserts the key/value pair in the leaf node.
 func (bpt *BPlusTree) insertLeaf(id uint64, e pool.Entry) (bool, error) {
 
 	n, err := bpt.where(id)
@@ -269,6 +273,7 @@ func (bpt *BPlusTree) insertLeaf(id uint64, e pool.Entry) (bool, error) {
 	return true, err
 }
 
+// insertInternal walks the internal nodes and chooses the appropriate child by doing a binary search.
 func (bpt *BPlusTree) insertInternal(id uint64, e pool.Entry) (bool, error) {
 
 	node, err := bpt.where(id)
@@ -324,6 +329,7 @@ func (bpt *BPlusTree) insertInternal(id uint64, e pool.Entry) (bool, error) {
 	return bpt.path(child.Id, e)
 }
 
+// full asserts if the node is full with respect to order and fanout.
 func (bpt *BPlusTree) full(n *pool.Node) bool {
 	if n.IsLeaf() {
 		return n.NumberOfEntries == (2*bpt.fanout)-1
