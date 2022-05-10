@@ -1,6 +1,7 @@
 package bptree
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"hbtrie/internal/pool"
 	"testing"
@@ -9,7 +10,7 @@ import (
 var store *BPlusTree
 var values map[[16]byte][8]byte
 
-const size = 10000
+const size = 8000
 
 func TestInit(t *testing.T) {
 	store = NewBplusTree(pool.NewBufferpool(nil, uint64(size)))
@@ -26,24 +27,35 @@ func TestInit(t *testing.T) {
 	}
 
 	if store.Len() != 0 {
-		t.Errorf("size should be 0 but is %d", store.Len())
+		t.Errorf("expected size %d, got %d", 0, store.Len())
 		t.FailNow()
 	}
 
 }
 
 func TestInsert(t *testing.T) {
-	//	t.Logf("inserting %d random keys", size)
+	step := 0
 	for key, value := range values {
 
 		success, err := store.Insert(key, value)
 		if err != nil {
-			t.Errorf("while inserting to kv store(%d): %v", key, err)
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
 			t.FailNow()
 		}
 
 		if !success {
-			t.Errorf("should be able to insert key: %v", key)
+			t.Errorf("[step %d] should be able to insert key: %v", step, key)
+			t.FailNow()
+		}
+
+		v, err := store.Search(key)
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+
+		if !bytes.Equal(v[:], value[:]) {
+			t.Errorf("[step %d] expected %v, got %v", step, value, v)
 			t.FailNow()
 		}
 	}
@@ -60,9 +72,6 @@ func TestInsert(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 
-	if store.Len() == 0 {
-		TestInsert(t)
-	}
 	step := 0
 	for key, value := range values {
 
@@ -89,7 +98,7 @@ func TestUpdate(t *testing.T) {
 	actual := int(store.Len())
 
 	if expected != actual {
-		t.Errorf("expected %d, got %d", expected, actual)
+		t.Errorf("expected size %d, got %d", expected, actual)
 		t.FailNow()
 	}
 }
