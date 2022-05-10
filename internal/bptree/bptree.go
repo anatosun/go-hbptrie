@@ -29,8 +29,8 @@ func NewBplusTree(pool *pool.Bufferpool) *BPlusTree {
 		panic(err)
 	}
 
-	bpt.order = uint64(len(bpt.root.Entries)/2) - 1
-	bpt.fanout = uint64(len(bpt.root.Children)/2) - 1
+	bpt.order = uint64(len(bpt.root.Entries) / 2)
+	bpt.fanout = uint64(len(bpt.root.Children) / 2)
 
 	return bpt
 }
