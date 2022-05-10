@@ -34,7 +34,7 @@ func NewBplusTree(pool *pool.Bufferpool) *BPlusTree {
 	return bpt
 }
 
-// serves to put a key/value pair in the B+ tree
+// Insert puts a key/value pair in the B+ tree.
 func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err error) {
 
 	e := pool.Entry{Key: key, Value: value}
@@ -49,8 +49,8 @@ func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err err
 	return success, err
 }
 
-// removes a given key and its entry in the B+ tree
-// this deletion is lazy, it only deletes the entry in the node without rebaleasing the tree
+// Remove deletes a given key and its entry in the B+ tree.
+// This deletion is lazy, it only deletes the entry in the node without rebaleasing the tree.
 func (bpt *BPlusTree) Remove(key [16]byte) (value *[8]byte, err error) {
 
 	if id, at, found, err := bpt.search(bpt.root.Id, key); err != nil {
@@ -76,7 +76,8 @@ func (bpt *BPlusTree) Remove(key [16]byte) (value *[8]byte, err error) {
 
 }
 
-// search for a given key among the nodes of the B+tree
+// Search returns the valu for a given key among the nodes of the B+tree.
+// If the key is not found, it returns a nil pointer and an error.
 func (bpt *BPlusTree) Search(key [16]byte) (*[8]byte, error) {
 
 	if id, at, found, err := bpt.search(bpt.root.Id, key); err != nil {
@@ -93,10 +94,10 @@ func (bpt *BPlusTree) Search(key [16]byte) (*[8]byte, error) {
 
 }
 
-// returns the length of the B+ tree
+// Len returns the length of the B+ tree
 func (bpt *BPlusTree) Len() int { return bpt.size }
 
-// recursively search for a key in the node and its children
+// search recursively search for a key in the node and its children.
 func (bpt *BPlusTree) search(id uint64, key [16]byte) (child uint64, at int, found bool, err error) {
 
 	node, err := bpt.where(id)
