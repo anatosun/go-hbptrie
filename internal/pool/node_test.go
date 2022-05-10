@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"crypto/sha1"
 	"testing"
 )
 
@@ -10,7 +11,16 @@ func TestMarshalUnmarshalNode(t *testing.T) {
 	node.Next = 4830759
 	node.Prev = 48583
 	offset := 29 // arbitrary offset
+	h := sha1.New()
+
 	for i := range node.Children {
+		h.Write([]byte{byte(i)})
+		key := [16]byte{}
+		copy(key[:], h.Sum(nil)[:16])
+		value := [8]byte{}
+		copy(value[:], h.Sum(nil)[:8])
+		entry := Entry{Key: key, Value: value}
+		node.InsertEntryAt(i, entry)
 		child := Node{Page: NewPage(uint64(i + offset))}
 		node.InsertChildAt(i, &child)
 	}
@@ -83,7 +93,16 @@ func TestMarshalUnmarshalNodeHalfFull(t *testing.T) {
 	node.Next = 4830759
 	node.Prev = 48583
 	offset := 29 // arbitrary offset
+	h := sha1.New()
+
 	for i := 0; i <= len(node.Children)/2; i++ {
+		h.Write([]byte{byte(i)})
+		key := [16]byte{}
+		copy(key[:], h.Sum(nil)[:16])
+		value := [8]byte{}
+		copy(value[:], h.Sum(nil)[:8])
+		entry := Entry{Key: key, Value: value}
+		node.InsertEntryAt(i, entry)
 		child := Node{Page: NewPage(uint64(i + offset))}
 		node.InsertChildAt(i, &child)
 	}
