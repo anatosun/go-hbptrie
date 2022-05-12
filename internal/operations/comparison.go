@@ -9,6 +9,10 @@ func Compare(a, b [16]byte) int {
 
 }
 
-func isNull(a [16]byte) bool {
+func IsNull(a [16]byte) bool {
 	return Compare(a, [16]byte{}) == 0
+}
+
+func Equal(a, b [16]byte) bool {
+	return Compare(a, b) == 0
 }
