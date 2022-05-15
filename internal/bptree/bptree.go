@@ -50,6 +50,21 @@ func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err err
 	return success, err
 }
 
+// Insert a subtree for a certain key in the B+ tree.
+func (bpt *BPlusTree) InsertSubTree(key [16]byte, subTree *BPlusTree) (success bool, err error) {
+
+	e := pool.Entry{Key: key, IsTree: true, SubTree: subTree}
+
+	success, err = bpt.insert(e)
+
+	if success {
+		bpt.size++
+		return success, nil
+	}
+
+	return success, err
+}
+
 // Remove deletes a given key and its entry in the B+ tree.
 // This deletion is lazy, it only deletes the entry in the node without rebaleasing the tree.
 func (bpt *BPlusTree) Remove(key [16]byte) (value *[8]byte, err error) {
@@ -89,6 +104,25 @@ func (bpt *BPlusTree) Search(key [16]byte) (*[8]byte, error) {
 			return nil, err
 		}
 		return &n.Entries[at].Value, err
+	}
+
+	return nil, &kverrors.KeyNotFoundError{Value: key}
+
+}
+
+// Search returns the tree entry for a given key among the nodes of the B+tree.
+// Used for HB+ Trie instance.
+// If the key is not found, it returns a nil pointer and an error.
+func (bpt *BPlusTree) SearchTreeEntry(key [16]byte) (*pool.Entry, error) {
+
+	if id, at, found, err := bpt.search(bpt.root.Id, key); err != nil {
+		return nil, err
+	} else if found {
+		n, err := bpt.where(id)
+		if err != nil {
+			return nil, err
+		}
+		return &n.Entries[at], err
 	}
 
 	return nil, &kverrors.KeyNotFoundError{Value: key}
