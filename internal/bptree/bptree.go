@@ -1,6 +1,7 @@
 package bptree
 
 import (
+	"encoding/binary"
 	"hbtrie/internal/kverrors"
 	"hbtrie/internal/operations"
 	"hbtrie/internal/pool"
@@ -29,10 +30,42 @@ func NewBplusTree(pool *pool.Bufferpool) *BPlusTree {
 		panic(err)
 	}
 
+	err = pool.SetRootPageId(bpt.frameId, bpt.root.Id)
+	if err != nil {
+		panic(err)
+	}
+
 	bpt.order = uint64(len(bpt.root.Entries) / 2)
 	bpt.fanout = uint64(len(bpt.root.Children) / 2)
 
 	return bpt
+}
+
+func LoadBplusTree(pool *pool.Bufferpool, frameId uint64) *BPlusTree {
+
+	bpt := &BPlusTree{}
+	bpt.pool = pool
+	bpt.frameId = frameId
+	// Retrieve root page id from frame
+	root, err := pool.GetRootPageId(bpt.frameId)
+	if err != nil {
+		panic(err)
+	}
+
+	if root == 0 {
+		panic("Cannot load exiting b+ tree instance. Invalid page id. Got pageId 0")
+	}
+
+	bpt.root, err = bpt.where(root)
+	if err != nil {
+		panic(err)
+	}
+
+	bpt.order = uint64(len(bpt.root.Entries) / 2)
+	bpt.fanout = uint64(len(bpt.root.Children) / 2)
+
+	return bpt
+
 }
 
 // Insert puts a key/value pair in the B+ tree.
@@ -51,9 +84,12 @@ func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err err
 }
 
 // Insert a subtree for a certain key in the B+ tree.
-func (bpt *BPlusTree) InsertSubTree(key [16]byte, subTree *BPlusTree) (success bool, err error) {
+func (bpt *BPlusTree) InsertSubTree(key [16]byte, frameId uint64) (success bool, err error) {
 
-	e := pool.Entry{Key: key, IsTree: true, SubTree: subTree}
+	byteFrameId := [8]byte{}
+	binary.LittleEndian.PutUint64(byteFrameId[:], frameId)
+
+	e := pool.Entry{Key: key, IsTree: true, Value: byteFrameId}
 
 	success, err = bpt.insert(e)
 
@@ -131,6 +167,9 @@ func (bpt *BPlusTree) SearchTreeEntry(key [16]byte) (*pool.Entry, error) {
 
 // Len returns the length of the B+ tree
 func (bpt *BPlusTree) Len() int { return bpt.size }
+
+// Returns the frame id of the current b+ tree instance
+func (bpt *BPlusTree) GetFrameId() uint64 { return bpt.frameId }
 
 // search recursively search for a key in the node and its children.
 func (bpt *BPlusTree) search(id uint64, key [16]byte) (child uint64, at int, found bool, err error) {

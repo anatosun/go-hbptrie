@@ -111,3 +111,29 @@ func (pool *Bufferpool) NewNode(frameId uint64) (node *Node, err error) {
 	return node, nil
 
 }
+
+// Sets the pageId of the b+ tree in a given frameId
+func (pool *Bufferpool) SetRootPageId(frameId uint64, pageId uint64) error {
+
+	frame := pool.frames[frameId]
+	if frame == nil {
+		return &kverrors.UnregisteredError{}
+	}
+
+	frame.setRootPageId(pageId)
+
+	return nil
+
+}
+
+// Returns the pageId of the b+ tree in a given frameId
+func (pool *Bufferpool) GetRootPageId(frameId uint64) (uint64, error) {
+
+	frame := pool.frames[frameId]
+	if frame == nil {
+		return 0, &kverrors.UnregisteredError{}
+	}
+
+	return frame.getRootPageId(), nil
+
+}

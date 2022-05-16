@@ -1,6 +1,7 @@
 package hbtrie
 
 import (
+	"encoding/binary"
 	"errors"
 	"hbtrie/internal/bptree"
 	"hbtrie/internal/kverrors"
@@ -43,9 +44,10 @@ func (hbt *HBTrieInstance) search(bpt *bptree.BPlusTree, key []byte) (*[8]byte, 
 
 	// Check if the leaf node is a pointer to a subtree.
 	if val.IsTree {
-		// Convert the byte slice to a pointer, which is a b+ tree instance
-		//subbpt := (*bptree.BPlusTree)(unsafe.Pointer(&val.Value))
-		subbpt := (val.SubTree).(*bptree.BPlusTree)
+		// Decode the frameId from the value field
+		subTreeFrameId := binary.LittleEndian.Uint64(val.Value[:])
+		// Load b+ tree instance using the frameid
+		subbpt := bptree.LoadBplusTree(hbt.pool, subTreeFrameId)
 		// Call recursively search.
 		return hbt.search(subbpt, *trimmedKey)
 	} else {
@@ -98,17 +100,10 @@ func (hbt *HBTrieInstance) insert(key []byte, value [8]byte, bpt *bptree.BPlusTr
 
 func (hbt *HBTrieInstance) createSubTree(bpt *bptree.BPlusTree, key [16]byte) (*bptree.BPlusTree, error) {
 	subTree := bptree.NewBplusTree(hbt.pool)
-	/*
-		bytesBptPtr := (*[8]byte)(unsafe.Pointer(&subTree))
-		fmt.Println(&subTree)
-		fmt.Println(subTree)
-		fmt.Println((*[16]byte)(unsafe.Pointer((unsafe.Pointer(&subTree))))[:])
-		blub := (uintptr(unsafe.Pointer(&subTree)))
-		fmt.Println(blub)
-		fmt.Println(unsafe.Pointer(blub))
-		fmt.Println((*bptree.BPlusTree)(unsafe.Pointer((*[8]byte)(unsafe.Pointer(&subTree)))))
-	*/
-	success, err := bpt.InsertSubTree(key, subTree)
+
+	treeFrameId := subTree.GetFrameId()
+	success, err := bpt.InsertSubTree(key, treeFrameId)
+
 	if success {
 		return subTree, nil
 	}
