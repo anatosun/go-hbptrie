@@ -1,17 +1,15 @@
 package store
 
 import (
-	"bytes"
 	"math/rand"
 	"os"
 	"path"
 	"testing"
-	"unsafe"
 )
 
 var (
 	store         Store
-	array         []int
+	array         [][]byte
 	testStorePath = path.Join(os.TempDir(), "testing_hb_store.db")
 )
 
@@ -36,10 +34,10 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
-	array = make([]int, 0, size)
+	array = make([][]byte, 0, size)
 
 	for i := 0; i < size; i++ {
-		array = append(array, i)
+		array = append(array, RandStringBytes(32))
 	}
 
 	if store.Len() != 0 {
@@ -68,10 +66,10 @@ func TestInitWithoutPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
-	array = make([]int, 0, size)
+	array = make([][]byte, 0, size)
 
 	for i := 0; i < size; i++ {
-		array = append(array, i)
+		array = append(array, RandStringBytes(32))
 	}
 
 	if store.Len() != 0 {
@@ -88,10 +86,10 @@ func TestInitWithoutChunkSize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
-	array = make([]int, 0, size)
+	array = make([][]byte, 0, size)
 
 	for i := 0; i < size; i++ {
-		array = append(array, i)
+		array = append(array, RandStringBytes(32))
 	}
 
 	if store.Len() != 0 {
@@ -107,10 +105,10 @@ func TestInitWithDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
-	array = make([]int, 0, size)
+	array = make([][]byte, 0, size)
 
 	for i := 0; i < size; i++ {
-		array = append(array, i)
+		array = append(array, RandStringBytes(32))
 	}
 
 	if store.Len() != 0 {
@@ -128,8 +126,9 @@ func TestInsert(t *testing.T) {
 	//	t.Logf("inserting %d random keys", size)
 
 	for i := 0; i < size; i++ {
-		b := make([]byte, unsafe.Sizeof(array[i]))
-		success, err := store.Put(b, b)
+		val := [8]byte{}
+		copy(val[:], array[i][:8])
+		success, err := store.Put(array[i], val)
 		if err != nil || !success {
 			t.Errorf("while inserting to kv store(%d): %v", i, err)
 			t.FailNow()
@@ -147,40 +146,16 @@ func TestInsert(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	for i := 0; i < size; i++ {
-		b := make([]byte, unsafe.Sizeof(array[i]))
-		actual, err := store.Get(b)
+		actual, err := store.Get(array[i])
 		if err != nil {
 			t.Fatalf("Cannot get a value from store: %v", err)
 		}
+		val := [8]byte{}
+		copy(val[:], array[i][:8])
 
-		if bytes.Compare(b, actual) != 0 {
-			t.Fatalf("expected %v, got %v\n", b, actual)
+		if val != actual {
+			t.Fatalf("expected %v, got %v\n", array[i], actual)
 		}
-	}
-}
-
-func TestRemove(t *testing.T) {
-
-	if store.Len() == 0 {
-		TestInsert(t)
-	}
-
-	for i := 0; i < len(array); i++ {
-		b := make([]byte, unsafe.Sizeof(array[i]))
-		err := store.Delete(b)
-		if err != nil {
-			t.Errorf("while removing %d: %v", array[i], err)
-			t.FailNow()
-		}
-
-	}
-
-	expected := 0
-	actual := int(store.Len())
-
-	if expected != actual {
-		t.Errorf("expected %d, got %d", expected, actual)
-		t.FailNow()
 	}
 }
 
@@ -191,21 +166,20 @@ func TestUpdate(t *testing.T) {
 	}
 
 	for i := 0; i < len(array); i++ {
-		r := rand.Int()
-		if r != array[i] {
-			b := make([]byte, unsafe.Sizeof(array[i]))
-			c := make([]byte, unsafe.Sizeof(r))
-			success, err := store.Put(b, c)
+		r := RandStringBytes(8)
+		val := [8]byte{}
+		copy(val[:], r[:])
 
-			if err != nil {
-				t.Errorf("error while updating %d to value %d: %v", array[i], r, err)
-				t.FailNow()
-			}
+		success, err := store.Put(array[i], val)
 
-			if success {
-				t.Errorf("error while updating %d to value %d: value was not updated", array[i], r)
-				t.FailNow()
-			}
+		if err != nil {
+			t.Errorf("error while updating %d to value %d: %v", array[i], r, err)
+			t.FailNow()
+		}
+
+		if !success {
+			t.Errorf("error while updating %d to value %d: value was not updated", array[i], r)
+			t.FailNow()
 		}
 	}
 
@@ -221,6 +195,30 @@ func TestUpdate(t *testing.T) {
 	TestDeleteStore(t)
 }
 
+func TestRemove(t *testing.T) {
+
+	if store.Len() == 0 {
+		TestInsert(t)
+	}
+
+	for i := 0; i < len(array); i++ {
+		err := store.Delete(array[i])
+		if err != nil {
+			t.Errorf("while removing %v: %v", array[i], err)
+			t.FailNow()
+		}
+
+	}
+
+	expected := 0
+	actual := int(store.Len())
+
+	if expected != actual {
+		t.Errorf("expected %d, got %d", expected, actual)
+		t.FailNow()
+	}
+}
+
 func TestInsert2Bytes(t *testing.T) {
 	store, err := NewStore(&StoreOptions{
 		storePath: path.Join(os.TempDir(), "testing_2bytes_hb_store.db"),
@@ -231,10 +229,10 @@ func TestInsert2Bytes(t *testing.T) {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
 
-	array = make([]int, 0, size)
+	array = make([][]byte, 0, size)
 
 	for i := 0; i < size; i++ {
-		array = append(array, i)
+		array = append(array, RandStringBytes(32))
 	}
 
 	if store.Len() != 0 {
@@ -243,8 +241,9 @@ func TestInsert2Bytes(t *testing.T) {
 	}
 
 	for i := 0; i < size; i++ {
-		b := make([]byte, unsafe.Sizeof(array[i]))
-		success, err := store.Put(b, b)
+		val := [8]byte{}
+		copy(val[:], array[i][:8])
+		success, err := store.Put(array[i], val)
 		if err != nil || !success {
 			t.Errorf("while inserting to kv store(%d): %v", i, err)
 			t.FailNow()

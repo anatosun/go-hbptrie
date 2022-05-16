@@ -12,6 +12,7 @@ type HBTrieInstance struct {
 	rootTree  *bptree.BPlusTree // Pointer to root B+ tree
 	pool      *pool.Bufferpool
 	chunkSize int // default 16 bytes
+	size      uint64
 }
 
 func NewHBPlusTrie(chunkSize int, pool *pool.Bufferpool) *HBTrieInstance {
@@ -52,7 +53,7 @@ func (hbt *HBTrieInstance) search(bpt *bptree.BPlusTree, key []byte) (*[8]byte, 
 		return hbt.search(subbpt, *trimmedKey)
 	} else {
 		// it is a leaf entry
-		return &val.Value, *trimmedKey, bpt, nil
+		return &val.Value, key, bpt, nil
 	}
 }
 
@@ -63,6 +64,7 @@ func (hbt *HBTrieInstance) Insert(key []byte, value [8]byte) (err error) {
 	if err != nil {
 		// Key doesn't exist
 		if errors.As(err, &errKeyNotFound) {
+			hbt.size++
 			return hbt.insert(trimmedKey, value, bpt)
 		} else {
 			// Unknown error
@@ -70,16 +72,22 @@ func (hbt *HBTrieInstance) Insert(key []byte, value [8]byte) (err error) {
 		}
 
 	}
-	// Key exists
+	// If key exists, then update the value
+	// We have the reference to the last subtree and the remaining key.
+	err = hbt.insert(trimmedKey, value, bpt)
 
-	return nil
+	return err
 
+}
+
+func (hbt *HBTrieInstance) Len() uint64 {
+	return hbt.size
 }
 
 func (hbt *HBTrieInstance) insert(key []byte, value [8]byte, bpt *bptree.BPlusTree) error {
 	chunkedKey, trimmedKey := createChunkFromKey(key)
 	// If key is longer than 16 bytes
-	if len(*trimmedKey) > 16 {
+	if len(key) > 16 {
 		subTree, err := hbt.createSubTree(bpt, *chunkedKey)
 		if err != nil {
 			return err

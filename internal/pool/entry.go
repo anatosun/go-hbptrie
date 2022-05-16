@@ -8,10 +8,9 @@ import (
 
 // Entry is the key-value unit of the bptree. it has a size of 24 bytes.
 type Entry struct {
-	IsTree  bool     // 1 byte
-	Key     [16]byte // keys are chunks of 16 bytes
-	Value   [8]byte  // values are pointers to subsequent b+ trees
-	SubTree interface{}
+	IsTree bool     // 1 byte
+	Key    [16]byte // keys are chunks of 16 bytes
+	Value  [8]byte  // values are pointers to subsequent b+ trees
 }
 
 func EntryLen() int {
