@@ -1,7 +1,6 @@
 package hbtrie
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"hbtrie/internal/pool"
 	"math/rand"
@@ -25,8 +24,7 @@ func TestInsertBelowChunkSize(t *testing.T) {
 		h.Write([]byte{byte(i)})
 		key := make([]byte, 0, 16)
 		key = h.Sum(nil)[:16]
-		value := [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value := rand.Uint64()
 
 		err := store.Insert(key, value)
 		if err != nil {
@@ -40,7 +38,7 @@ func TestInsertBelowChunkSize(t *testing.T) {
 			t.FailNow()
 		}
 
-		if !bytes.Equal(v[:], value[:]) {
+		if v != value {
 			t.Errorf("[step %d] expected %v, got %v", step, value, v)
 			t.FailNow()
 		}
@@ -56,8 +54,7 @@ func TestInsertAboveChunkSize(t *testing.T) {
 		h.Write([]byte{byte(i)})
 		key := make([]byte, 0, 40)
 		key = append(h.Sum(nil), h.Sum(nil)...)
-		value := [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value := rand.Uint64()
 
 		err := store.Insert(key, value)
 		if err != nil {
@@ -71,8 +68,8 @@ func TestInsertAboveChunkSize(t *testing.T) {
 			t.FailNow()
 		}
 
-		if !bytes.Equal(v[:], value[:]) {
-			t.Errorf("[step %d] expected %v, got %v", step, value, *v)
+		if v != value {
+			t.Errorf("[step %d] expected %v, got %v", step, value, v)
 			t.FailNow()
 		}
 	}
@@ -96,8 +93,7 @@ func TestInsertSimilarAboveChunkSize(t *testing.T) {
 		key := make([]byte, 0, 40)
 		// Pick randomely a prefix from a predefined list and append the key to it.
 		key = append(randomPrefix[rand.Intn(10)][:], h.Sum(nil)...)
-		value := [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value := rand.Uint64()
 
 		err := store.Insert(key, value)
 		if err != nil {
@@ -111,8 +107,8 @@ func TestInsertSimilarAboveChunkSize(t *testing.T) {
 			t.FailNow()
 		}
 
-		if !bytes.Equal(v[:], value[:]) {
-			t.Errorf("[step %d] expected %v, got %v", step, value, *v)
+		if v != value {
+			t.Errorf("[step %d] expected %v, got %v", step, value, v)
 			t.FailNow()
 		}
 	}
@@ -128,8 +124,7 @@ func TestUpdateKeys(t *testing.T) {
 		key := make([]byte, 0, 40)
 		// Pick randomely a prefix from a predefined list and append the key to it.
 		key = append(h.Sum(nil), h.Sum(nil)...)
-		value := [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value := rand.Uint64()
 
 		err := store.Insert(key, value)
 		if err != nil {
@@ -139,8 +134,7 @@ func TestUpdateKeys(t *testing.T) {
 
 		// generate a new value
 		h.Write([]byte{byte(i * 10)})
-		value = [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value = rand.Uint64()
 
 		// Update the value with the same key
 		err = store.Insert(key, value)
@@ -155,8 +149,8 @@ func TestUpdateKeys(t *testing.T) {
 			t.FailNow()
 		}
 
-		if !bytes.Equal(v[:], value[:]) {
-			t.Errorf("[step %d] expected %v, got %v", step, value, *v)
+		if v != value {
+			t.Errorf("[step %d] expected %v, got %v", step, value, v)
 			t.FailNow()
 		}
 	}
