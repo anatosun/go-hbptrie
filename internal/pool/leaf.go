@@ -21,7 +21,7 @@ func (n *Node) InsertEntryAt(at int, e Entry) error {
 	return nil
 }
 
-func (n *Node) Update(at int, v [8]byte) error {
+func (n *Node) Update(at int, v uint64) error {
 	if n.Entries[at].Value != v {
 		n.Entries[at].Value = v
 		n.Dirty = true

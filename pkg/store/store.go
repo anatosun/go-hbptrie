@@ -25,12 +25,12 @@ type Store interface {
 	DeleteStore() (err error)
 
 	// Get returns the value for the given key.
-	Get(key []byte) (value [8]byte, err error)
+	Get(key []byte) (value uint64, err error)
 
 	// Set sets the value for the given key
 	// When error is nil outputs true in the case of a successful insertion
 	// and false in the case of an update
-	Put(key []byte, value [8]byte) (inserted bool, err error)
+	Put(key []byte, value uint64) (inserted bool, err error)
 
 	// Delete deletes the value for the given key.
 	Delete(key []byte) (err error)
@@ -89,12 +89,12 @@ func (s *HBTrieStore) DeleteStore() error {
 	return nil
 }
 
-func (s *HBTrieStore) Get(key []byte) (value [8]byte, err error) {
+func (s *HBTrieStore) Get(key []byte) (value uint64, err error) {
 	val, err := s.hbtrie.Search(key)
-	return *val, err
+	return val, err
 }
 
-func (s *HBTrieStore) Put(key []byte, value [8]byte) (inserted bool, err error) {
+func (s *HBTrieStore) Put(key []byte, value uint64) (inserted bool, err error) {
 	err = s.hbtrie.Insert(key, value)
 
 	if err != nil {

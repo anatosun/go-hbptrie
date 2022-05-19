@@ -17,8 +17,7 @@ func TestMarshalUnmarshalLeaf(t *testing.T) {
 		h.Write([]byte{byte(i)})
 		key := [16]byte{}
 		copy(key[:], h.Sum(nil)[:16])
-		value := [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value := rand.Uint64()
 		entry := Entry{Key: key, Value: value}
 		leaf.InsertEntryAt(i, entry)
 	}

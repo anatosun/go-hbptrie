@@ -22,8 +22,8 @@ func TestInsertBelowChunkSize(t *testing.T) {
 
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
-		key := make([]byte, 0, 16)
-		key = h.Sum(nil)[:16]
+		// key := make([]byte, 0, 16)
+		key := h.Sum(nil)[:16]
 		value := rand.Uint64()
 
 		err := store.Insert(key, value)
@@ -52,8 +52,8 @@ func TestInsertAboveChunkSize(t *testing.T) {
 
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
-		key := make([]byte, 0, 40)
-		key = append(h.Sum(nil), h.Sum(nil)...)
+		// key := make([]byte, 0, 40)
+		key := append(h.Sum(nil), h.Sum(nil)...)
 		value := rand.Uint64()
 
 		err := store.Insert(key, value)
@@ -90,9 +90,9 @@ func TestInsertSimilarAboveChunkSize(t *testing.T) {
 
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
-		key := make([]byte, 0, 40)
+		// key := make([]byte, 0, 40)
 		// Pick randomely a prefix from a predefined list and append the key to it.
-		key = append(randomPrefix[rand.Intn(10)][:], h.Sum(nil)...)
+		key := append(randomPrefix[rand.Intn(10)][:], h.Sum(nil)...)
 		value := rand.Uint64()
 
 		err := store.Insert(key, value)
@@ -121,9 +121,9 @@ func TestUpdateKeys(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		h.Write([]byte{byte(i)})
-		key := make([]byte, 0, 40)
+		// key := make([]byte, 0, 40)
 		// Pick randomely a prefix from a predefined list and append the key to it.
-		key = append(h.Sum(nil), h.Sum(nil)...)
+		key := append(h.Sum(nil), h.Sum(nil)...)
 		value := rand.Uint64()
 
 		err := store.Insert(key, value)

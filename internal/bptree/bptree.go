@@ -1,7 +1,6 @@
 package bptree
 
 import (
-	"encoding/binary"
 	"hbtrie/internal/kverrors"
 	"hbtrie/internal/operations"
 	"hbtrie/internal/pool"
@@ -69,7 +68,7 @@ func LoadBplusTree(pool *pool.Bufferpool, frameId uint64) *BPlusTree {
 }
 
 // Insert puts a key/value pair in the B+ tree.
-func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err error) {
+func (bpt *BPlusTree) Insert(key [16]byte, value uint64) (success bool, err error) {
 
 	e := pool.Entry{Key: key, Value: value}
 
@@ -86,10 +85,7 @@ func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err err
 // Insert a subtree for a certain key in the B+ tree.
 func (bpt *BPlusTree) InsertSubTree(key [16]byte, frameId uint64) (success bool, err error) {
 
-	byteFrameId := [8]byte{}
-	binary.LittleEndian.PutUint64(byteFrameId[:], frameId)
-
-	e := pool.Entry{Key: key, IsTree: true, Value: byteFrameId}
+	e := pool.Entry{Key: key, IsTree: true, Value: frameId}
 
 	success, err = bpt.insert(e)
 
@@ -103,46 +99,46 @@ func (bpt *BPlusTree) InsertSubTree(key [16]byte, frameId uint64) (success bool,
 
 // Remove deletes a given key and its entry in the B+ tree.
 // This deletion is lazy, it only deletes the entry in the node without rebaleasing the tree.
-func (bpt *BPlusTree) Remove(key [16]byte) (value *[8]byte, err error) {
+func (bpt *BPlusTree) Remove(key [16]byte) (value uint64, err error) {
 
 	if id, at, found, err := bpt.search(bpt.root.Id, key); err != nil {
-		return nil, err
+		return 0, err
 	} else if found {
 		node, err := bpt.where(id)
 
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 
 		e, err := node.DeleteEntryAt(at)
 
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		bpt.size--
 
-		return &e.Value, err
+		return e.Value, err
 	}
 
-	return nil, &kverrors.KeyNotFoundError{Value: key}
+	return 0, &kverrors.KeyNotFoundError{Value: key}
 
 }
 
 // Search returns the valu for a given key among the nodes of the B+tree.
 // If the key is not found, it returns a nil pointer and an error.
-func (bpt *BPlusTree) Search(key [16]byte) (*[8]byte, error) {
+func (bpt *BPlusTree) Search(key [16]byte) (uint64, error) {
 
 	if id, at, found, err := bpt.search(bpt.root.Id, key); err != nil {
-		return nil, err
+		return 0, err
 	} else if found {
 		n, err := bpt.where(id)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
-		return &n.Entries[at].Value, err
+		return n.Entries[at].Value, err
 	}
 
-	return nil, &kverrors.KeyNotFoundError{Value: key}
+	return 0, &kverrors.KeyNotFoundError{Value: key}
 
 }
 
