@@ -5,21 +5,14 @@ import (
 	"os"
 )
 
-// // Pool is an interface for a buffer pool
-// type Pool interface {
-// 	PageSize() uint16
-// 	NewPage() *Page
-// 	GetPage(pageID uint16) *Page
-// 	EvictPage(pageID uint16) bool
-// 	EvictPages()
-// 	DeletePage(pageID uint16) error
-// 	UnpinPage(pageID uint16, dirty bool) error
-// }
-
 type Bufferpool struct {
 	frames     map[uint64]*frame
 	allocation uint64
 	file       *os.File
+}
+
+func (pool *Bufferpool) position(frameId, pageId uint64) uint64 {
+	return frameId*pool.allocation + pageId*uint64(PageSize)
 }
 
 // NewBufferpool returns a new bufferpool with the given underlying file and allocation size.
@@ -30,7 +23,7 @@ func NewBufferpool(file *os.File, allocation uint64) *Bufferpool {
 }
 
 func (pool *Bufferpool) write(frameId uint64, page *Node) error {
-	position := frameId*pool.allocation + page.Id*uint64(PageSize)
+	position := pool.position(frameId, page.Id)
 	data, err := page.MarshalBinary()
 	if err != nil {
 		return err
@@ -46,16 +39,23 @@ func (pool *Bufferpool) write(frameId uint64, page *Node) error {
 
 }
 
-func (pool *Bufferpool) writeAt(data []byte, position int64) error {
-	return nil
-}
+func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
 
-func (pool *Bufferpool) read(page *Node) error {
-	return nil
-}
-
-func (pool *Bufferpool) io() {
-
+	position := pool.position(frameId, pageId)
+	data := make([]byte, PageSize)
+	nbytes, err := pool.file.ReadAt(data, int64(position))
+	if err != nil {
+		return nil, err
+	}
+	if nbytes != len(data) {
+		return nil, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
+	}
+	node := new(Node)
+	err = node.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
 }
 
 // Register is used for a client to get a frame allocated in the bufferpool.
@@ -75,15 +75,24 @@ func (pool *Bufferpool) Unregister(id uint64) {
 	delete(pool.frames, id)
 }
 
-// Query returns the node with the given id from the given frame.
+// Query returns the node with the given id from the given frame. If the node is not memory, it performs IO.
 // It may return an error if the client hasn't previously registered the frame (i.e., the frame id is invalid).
-func (pool *Bufferpool) Query(frameId, pageID uint64) (*Node, error) {
+func (pool *Bufferpool) Query(frameId, pageID uint64) (node *Node, err error) {
 
 	frame := pool.frames[frameId]
 	if frame == nil {
 		return nil, &kverrors.UnregisteredError{}
 	}
-	return frame.query(pageID), nil
+
+	node = frame.query(pageID)
+	if node == nil {
+		node, err = pool.io(frameId, pageID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return node, nil
 
 }
 
