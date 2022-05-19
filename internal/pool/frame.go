@@ -11,6 +11,7 @@ type frame struct {
 	// dirties    map[uint64]*Node
 	cursor     uint64
 	allocation uint64
+	rootPageId uint64
 }
 
 func (l *frame) push(p *Page) {
@@ -75,4 +76,14 @@ func (l *frame) evictTail() *Node {
 	node := l.pages[tail.Id]
 	delete(l.pages, tail.Id)
 	return node
+}
+
+// Sets page id of the root b+ tree
+func (l *frame) setRootPageId(pageId uint64) {
+	l.rootPageId = pageId
+}
+
+// Returns page id of the root b+ tree
+func (l *frame) getRootPageId() uint64 {
+	return l.rootPageId
 }

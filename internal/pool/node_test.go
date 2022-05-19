@@ -2,6 +2,7 @@ package pool
 
 import (
 	"crypto/sha1"
+	"math/rand"
 	"testing"
 )
 
@@ -17,8 +18,7 @@ func TestMarshalUnmarshalNode(t *testing.T) {
 		h.Write([]byte{byte(i)})
 		key := [16]byte{}
 		copy(key[:], h.Sum(nil)[:16])
-		value := [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value := rand.Uint64()
 		entry := Entry{Key: key, Value: value}
 		node.InsertEntryAt(i, entry)
 		child := Node{Page: NewPage(uint64(i + offset))}
@@ -99,8 +99,7 @@ func TestMarshalUnmarshalNodeHalfFull(t *testing.T) {
 		h.Write([]byte{byte(i)})
 		key := [16]byte{}
 		copy(key[:], h.Sum(nil)[:16])
-		value := [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value := rand.Uint64()
 		entry := Entry{Key: key, Value: value}
 		node.InsertEntryAt(i, entry)
 		child := Node{Page: NewPage(uint64(i + offset))}

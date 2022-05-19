@@ -29,14 +29,46 @@ func NewBplusTree(pool *pool.Bufferpool) *BPlusTree {
 		panic(err)
 	}
 
+	err = pool.SetRootPageId(bpt.frameId, bpt.root.Id)
+	if err != nil {
+		panic(err)
+	}
+
 	bpt.order = uint64(len(bpt.root.Entries) / 2)
 	bpt.fanout = uint64(len(bpt.root.Children) / 2)
 
 	return bpt
 }
 
+func LoadBplusTree(pool *pool.Bufferpool, frameId uint64) *BPlusTree {
+
+	bpt := &BPlusTree{}
+	bpt.pool = pool
+	bpt.frameId = frameId
+	// Retrieve root page id from frame
+	root, err := pool.GetRootPageId(bpt.frameId)
+	if err != nil {
+		panic(err)
+	}
+
+	if root == 0 {
+		panic("Cannot load exiting b+ tree instance. Invalid page id. Got pageId 0")
+	}
+
+	bpt.root, err = bpt.where(root)
+	if err != nil {
+		panic(err)
+	}
+
+	bpt.order = uint64(len(bpt.root.Entries) / 2)
+	bpt.fanout = uint64(len(bpt.root.Children) / 2)
+
+	return bpt
+
+}
+
 // Insert puts a key/value pair in the B+ tree.
-func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err error) {
+func (bpt *BPlusTree) Insert(key [16]byte, value uint64) (success bool, err error) {
 
 	e := pool.Entry{Key: key, Value: value}
 
@@ -50,36 +82,70 @@ func (bpt *BPlusTree) Insert(key [16]byte, value [8]byte) (success bool, err err
 	return success, err
 }
 
+// Insert a subtree for a certain key in the B+ tree.
+func (bpt *BPlusTree) InsertSubTree(key [16]byte, frameId uint64) (success bool, err error) {
+
+	e := pool.Entry{Key: key, IsTree: true, Value: frameId}
+
+	success, err = bpt.insert(e)
+
+	if success {
+		bpt.size++
+		return success, nil
+	}
+
+	return success, err
+}
+
 // Remove deletes a given key and its entry in the B+ tree.
 // This deletion is lazy, it only deletes the entry in the node without rebaleasing the tree.
-func (bpt *BPlusTree) Remove(key [16]byte) (value *[8]byte, err error) {
+func (bpt *BPlusTree) Remove(key [16]byte) (value uint64, err error) {
 
 	if id, at, found, err := bpt.search(bpt.root.Id, key); err != nil {
-		return nil, err
+		return 0, err
 	} else if found {
 		node, err := bpt.where(id)
 
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 
 		e, err := node.DeleteEntryAt(at)
 
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		bpt.size--
 
-		return &e.Value, err
+		return e.Value, err
 	}
 
-	return nil, &kverrors.KeyNotFoundError{Value: key}
+	return 0, &kverrors.KeyNotFoundError{Value: key}
 
 }
 
 // Search returns the valu for a given key among the nodes of the B+tree.
 // If the key is not found, it returns a nil pointer and an error.
-func (bpt *BPlusTree) Search(key [16]byte) (*[8]byte, error) {
+func (bpt *BPlusTree) Search(key [16]byte) (uint64, error) {
+
+	if id, at, found, err := bpt.search(bpt.root.Id, key); err != nil {
+		return 0, err
+	} else if found {
+		n, err := bpt.where(id)
+		if err != nil {
+			return 0, err
+		}
+		return n.Entries[at].Value, err
+	}
+
+	return 0, &kverrors.KeyNotFoundError{Value: key}
+
+}
+
+// Search returns the tree entry for a given key among the nodes of the B+tree.
+// Used for HB+ Trie instance.
+// If the key is not found, it returns a nil pointer and an error.
+func (bpt *BPlusTree) SearchTreeEntry(key [16]byte) (*pool.Entry, error) {
 
 	if id, at, found, err := bpt.search(bpt.root.Id, key); err != nil {
 		return nil, err
@@ -88,7 +154,7 @@ func (bpt *BPlusTree) Search(key [16]byte) (*[8]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &n.Entries[at].Value, err
+		return &n.Entries[at], err
 	}
 
 	return nil, &kverrors.KeyNotFoundError{Value: key}
@@ -97,6 +163,9 @@ func (bpt *BPlusTree) Search(key [16]byte) (*[8]byte, error) {
 
 // Len returns the length of the B+ tree
 func (bpt *BPlusTree) Len() int { return bpt.size }
+
+// Returns the frame id of the current b+ tree instance
+func (bpt *BPlusTree) GetFrameId() uint64 { return bpt.frameId }
 
 // search recursively search for a key in the node and its children.
 func (bpt *BPlusTree) search(id uint64, key [16]byte) (child uint64, at int, found bool, err error) {
