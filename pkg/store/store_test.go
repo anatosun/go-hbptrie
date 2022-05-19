@@ -126,8 +126,7 @@ func TestInsert(t *testing.T) {
 	//	t.Logf("inserting %d random keys", size)
 
 	for i := 0; i < size; i++ {
-		val := [8]byte{}
-		copy(val[:], array[i][:8])
+		val := rand.Uint64()
 		success, err := store.Put(array[i], val)
 		if err != nil || !success {
 			t.Errorf("while inserting to kv store(%d): %v", i, err)
@@ -150,8 +149,7 @@ func TestGet(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Cannot get a value from store: %v", err)
 		}
-		val := [8]byte{}
-		copy(val[:], array[i][:8])
+		val := rand.Uint64()
 
 		if val != actual {
 			t.Fatalf("expected %v, got %v\n", array[i], actual)
@@ -167,8 +165,7 @@ func TestUpdate(t *testing.T) {
 
 	for i := 0; i < len(array); i++ {
 		r := RandStringBytes(8)
-		val := [8]byte{}
-		copy(val[:], r[:])
+		val := rand.Uint64()
 
 		success, err := store.Put(array[i], val)
 
@@ -241,8 +238,7 @@ func TestInsert2Bytes(t *testing.T) {
 	}
 
 	for i := 0; i < size; i++ {
-		val := [8]byte{}
-		copy(val[:], array[i][:8])
+		val := rand.Uint64()
 		success, err := store.Put(array[i], val)
 		if err != nil || !success {
 			t.Errorf("while inserting to kv store(%d): %v", i, err)
