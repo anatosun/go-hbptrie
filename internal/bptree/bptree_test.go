@@ -53,7 +53,7 @@ func TestInsert(t *testing.T) {
 			t.FailNow()
 		}
 
-		if v == value {
+		if v != value {
 			t.Errorf("[step %d] expected %d, got %d", step, value, v)
 			t.FailNow()
 		}
