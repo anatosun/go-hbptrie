@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// Entry is the key-value unit of the bptree. it has a size of 24 bytes.
+// Entry is the key-value unit of the bptree. it has a size of 25 bytes.
 type Entry struct {
 	IsTree bool     // 1 byte
 	Key    [16]byte // keys are chunks of 16 bytes
@@ -15,7 +15,9 @@ type Entry struct {
 }
 
 func EntryLen() int {
-	return int(unsafe.Sizeof(Entry{}))
+	b := true
+	v := uint64(0)
+	return int(unsafe.Sizeof(b) + 16 + unsafe.Sizeof(v))
 }
 
 func (e *Entry) MarshalEntry() ([]byte, error) {
