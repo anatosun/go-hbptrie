@@ -70,14 +70,6 @@ func (l *frame) newNode() (node *Node, full bool) {
 	return n, false
 }
 
-func (l *frame) evictTail() *Node {
-	tail := l.tail
-	l.pop(l.tail)
-	node := l.pages[tail.Id]
-	delete(l.pages, tail.Id)
-	return node
-}
-
 // Sets page id of the root b+ tree
 func (l *frame) setRootPageId(pageId uint64) {
 	l.rootPageId = pageId
