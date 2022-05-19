@@ -29,6 +29,35 @@ func NewBufferpool(file *os.File, allocation uint64) *Bufferpool {
 	return &Bufferpool{file: file, frames: make(map[uint64]*frame), allocation: allocation}
 }
 
+func (pool *Bufferpool) write(frameId uint64, page *Node) error {
+	position := frameId*pool.allocation + page.Id*uint64(PageSize)
+	data, err := page.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	nbytes, err := pool.file.WriteAt(data, int64(position))
+	if err != nil {
+		return err
+	}
+	if nbytes != len(data) {
+		return &kverrors.PartialWriteError{Total: len(data), Written: nbytes}
+	}
+	return nil
+
+}
+
+func (pool *Bufferpool) writeAt(data []byte, position int64) error {
+	return nil
+}
+
+func (pool *Bufferpool) read(page *Node) error {
+	return nil
+}
+
+func (pool *Bufferpool) io() {
+
+}
+
 // Register is used for a client to get a frame allocated in the bufferpool.
 // It returns the id of the frame which should be use for subsequent queries.
 func (pool *Bufferpool) Register() uint64 {
@@ -74,7 +103,8 @@ func (pool *Bufferpool) NewNode(frameId uint64) (node *Node, err error) {
 
 	full := false
 	for node, full = frame.newNode(); full; {
-		// tail := frame.evictTail()
+		tail := frame.evictTail()
+		pool.write(frameId, tail)
 		// here we should write to disk
 	}
 
