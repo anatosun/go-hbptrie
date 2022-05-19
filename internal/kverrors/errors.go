@@ -105,3 +105,12 @@ type PartialWriteError struct {
 func (err *PartialWriteError) Error() string {
 	return fmt.Sprintf("partial write: %d/%d", err.Written, err.Total)
 }
+
+type PartialReadError struct {
+	Total int
+	Read  int
+}
+
+func (err *PartialReadError) Error() string {
+	return fmt.Sprintf("partial read: %d/%d", err.Read, err.Total)
+}
