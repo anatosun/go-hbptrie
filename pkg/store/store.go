@@ -1,6 +1,8 @@
 package store
 
 import (
+	"hbtrie/internal/hbtrie"
+	"hbtrie/internal/pool"
 	"os"
 	"path"
 )
@@ -23,12 +25,12 @@ type Store interface {
 	DeleteStore() (err error)
 
 	// Get returns the value for the given key.
-	Get(key []byte) (value []byte, err error)
+	Get(key []byte) (value uint64, err error)
 
 	// Set sets the value for the given key
 	// When error is nil outputs true in the case of a successful insertion
 	// and false in the case of an update
-	Put(key []byte, value []byte) (inserted bool, err error)
+	Put(key []byte, value uint64) (inserted bool, err error)
 
 	// Delete deletes the value for the given key.
 	Delete(key []byte) (err error)
@@ -49,38 +51,57 @@ type StoreOptions struct {
 type HBTrieStore struct {
 	storePath string
 	chunkSize int
+	pool      *pool.Bufferpool
+	hbtrie    *hbtrie.HBTrieInstance
 }
+
+const (
+	bufferpoolSize = 8000
+)
 
 func NewStore(options *StoreOptions) (Store, error) {
 	// Chunk size is not set, then default 8 bytes
 	if options.chunkSize == 0 {
-		options.chunkSize = 8
+		options.chunkSize = 16
 	}
 
 	if len(options.storePath) == 0 {
 		options.storePath = path.Join(os.TempDir(), "hb_store.db")
 	}
 
+	pool := pool.NewBufferpool(nil, uint64(bufferpoolSize))
+
 	return &HBTrieStore{
 		storePath: options.storePath,
 		chunkSize: options.chunkSize,
+		pool:      pool,
+		hbtrie:    hbtrie.NewHBPlusTrie(options.chunkSize, pool),
 	}, nil
 }
 
 func (s *HBTrieStore) Close() error {
-	panic("Not implemented")
+	// TODO: Implement
+	return nil
 }
 
 func (s *HBTrieStore) DeleteStore() error {
-	panic("Not implemented")
+	// TODO: Implement
+	return nil
 }
 
-func (s *HBTrieStore) Get(key []byte) (value []byte, err error) {
-	panic("Not implemented")
+func (s *HBTrieStore) Get(key []byte) (value uint64, err error) {
+	val, err := s.hbtrie.Search(key)
+	return val, err
 }
 
-func (s *HBTrieStore) Put(key []byte, value []byte) (inserted bool, err error) {
-	panic("Not implemented")
+func (s *HBTrieStore) Put(key []byte, value uint64) (inserted bool, err error) {
+	err = s.hbtrie.Insert(key, value)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (s *HBTrieStore) Delete(key []byte) (err error) {
@@ -88,5 +109,5 @@ func (s *HBTrieStore) Delete(key []byte) (err error) {
 }
 
 func (s *HBTrieStore) Len() uint64 {
-	panic("Not implemented")
+	return s.hbtrie.Len()
 }

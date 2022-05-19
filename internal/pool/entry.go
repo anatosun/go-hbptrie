@@ -1,25 +1,29 @@
 package pool
 
 import (
+	"encoding/binary"
 	"fmt"
 	"hbtrie/internal/kverrors"
 	"unsafe"
 )
 
-// Entry is the key-value unit of the bptree. it has a size of 24 bytes.
+// Entry is the key-value unit of the bptree. it has a size of 25 bytes.
 type Entry struct {
-	Key   [16]byte // keys are chunks of 16 bytes
-	Value [8]byte  // values are pointers to subsequent b+ trees
+	IsTree bool     // 1 byte
+	Key    [16]byte // keys are chunks of 16 bytes
+	Value  uint64   // values are pointers to subsequent b+ trees
 }
 
 func EntryLen() int {
-	return int(unsafe.Sizeof(Entry{}))
+	b := true
+	v := uint64(0)
+	return int(unsafe.Sizeof(b) + 16 + unsafe.Sizeof(v))
 }
 
 func (e *Entry) MarshalEntry() ([]byte, error) {
 	buf := make([]byte, EntryLen())
 	copy(buf[:16], e.Key[:])
-	copy(buf[16:], e.Value[:])
+	binary.LittleEndian.PutUint64(buf[16:], e.Value)
 	if len(buf) != EntryLen() {
 		return nil, &kverrors.BufferOverflowError{Max: EntryLen(), Cursor: len(buf)}
 	}
@@ -31,6 +35,6 @@ func (e *Entry) UnmarshalEntry(data []byte) error {
 		return fmt.Errorf("invalid Entry size: %d", len(data))
 	}
 	copy(e.Key[:], data[:16])
-	copy(e.Value[:], data[16:])
+	e.Value = binary.LittleEndian.Uint64(data[16:])
 	return nil
 }

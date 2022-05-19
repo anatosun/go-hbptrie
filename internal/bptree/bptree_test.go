@@ -1,28 +1,27 @@
 package bptree
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"hbtrie/internal/pool"
+	"math/rand"
 	"testing"
 )
 
 var store *BPlusTree
-var values map[[16]byte][8]byte
+var values map[[16]byte]uint64
 
 const size = 8000
 
 func TestInit(t *testing.T) {
 	store = NewBplusTree(pool.NewBufferpool(nil, uint64(size)))
-	values = make(map[[16]byte][8]byte)
+	values = make(map[[16]byte]uint64)
 	h := sha1.New()
 
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [16]byte{}
 		copy(key[:], h.Sum(nil)[:16])
-		value := [8]byte{}
-		copy(value[:], h.Sum(nil)[:8])
+		value := rand.Uint64()
 		values[key] = value
 	}
 
@@ -54,8 +53,8 @@ func TestInsert(t *testing.T) {
 			t.FailNow()
 		}
 
-		if !bytes.Equal(v[:], value[:]) {
-			t.Errorf("[step %d] expected %v, got %v", step, value, v)
+		if v != value {
+			t.Errorf("[step %d] expected %d, got %d", step, value, v)
 			t.FailNow()
 		}
 	}
