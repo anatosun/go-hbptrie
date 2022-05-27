@@ -90,6 +90,14 @@ func (pool *Bufferpool) Query(frameId, pageID uint64) (node *Node, err error) {
 		if err != nil {
 			return nil, err
 		}
+		for frame.full() {
+			tail := frame.evictTail()
+			pool.write(frameId, tail)
+		}
+		err = frame.add(node)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return node, nil
@@ -111,7 +119,7 @@ func (pool *Bufferpool) NewNode(frameId uint64) (node *Node, err error) {
 	}
 
 	full := false
-	for node, full = frame.newNode(); full; {
+	for node, full = frame.newNode(); full && node != nil; {
 		tail := frame.evictTail()
 		pool.write(frameId, tail)
 		// here we should write to disk
