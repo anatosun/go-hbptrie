@@ -36,6 +36,11 @@ func (l *frame) boost(p *Page) {
 }
 
 func newFrame(allocation uint64) *frame {
+
+	if allocation < 3 {
+		panic("allocation for a frame must at least be of 3 pages")
+	}
+
 	l := &frame{
 		head:  NewPage(1),
 		tail:  NewPage(allocation),
@@ -45,6 +50,8 @@ func newFrame(allocation uint64) *frame {
 	l.allocation = allocation
 	l.head.next = l.tail
 	l.tail.prev = l.head
+	l.pages[l.head.Id] = &Node{Page: l.head}
+	l.pages[l.tail.Id] = &Node{Page: l.tail}
 	l.cursor = 1
 	return l
 }
@@ -56,6 +63,7 @@ func (l *frame) query(id uint64) *Node {
 	}
 
 	if p, ok := l.pages[id]; ok {
+
 		l.boost(p.Page)
 	}
 
@@ -88,11 +96,21 @@ func (l *frame) add(node *Node) error {
 	return nil
 }
 
-func (l *frame) evictTail() *Node {
-	tail := l.tail
-	l.pop(l.tail)
-	node := l.pages[tail.Id]
-	delete(l.pages, tail.Id)
+// for debuggin purposes
+// func (l *frame) printLinkedList() {
+// 	p := l.head
+// 	for p != nil {
+// 		fmt.Printf("%d ", p.Id)
+// 		p = p.next
+// 	}
+// 	fmt.Println()
+// }
+
+func (l *frame) evict() *Node {
+	p := l.tail.prev
+	l.pop(p)
+	node := l.pages[p.Id]
+	delete(l.pages, p.Id)
 	return node
 }
 

@@ -50,10 +50,13 @@ func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
 	if nbytes != len(data) {
 		return nil, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
 	}
-	node := new(Node)
+	node := &Node{Page: NewPage(0)}
 	err = node.UnmarshalBinary(data)
 	if err != nil {
 		return nil, err
+	}
+	if node.Page.Id == 0 {
+		return nil, &kverrors.InvalidNodeError{}
 	}
 	return node, nil
 }
@@ -91,7 +94,7 @@ func (pool *Bufferpool) Query(frameId, pageID uint64) (node *Node, err error) {
 			return nil, err
 		}
 		for frame.full() {
-			tail := frame.evictTail()
+			tail := frame.evict()
 			pool.write(frameId, tail)
 		}
 		err = frame.add(node)
@@ -111,18 +114,23 @@ func (pool *Bufferpool) NewPage(frameId uint64) (*Node, error) {
 
 // NewNode provides a new node (page) in the frame given as parameter.
 // It may return an error if the client hasn't previously registered the frame (i.e., the frame id is invalid).
-func (pool *Bufferpool) NewNode(frameId uint64) (node *Node, err error) {
+func (pool *Bufferpool) NewNode(frameId uint64) (*Node, error) {
 
 	frame := pool.frames[frameId]
 	if frame == nil {
 		return nil, &kverrors.UnregisteredError{}
 	}
 
-	full := false
-	for node, full = frame.newNode(); full && node != nil; {
-		tail := frame.evictTail()
-		pool.write(frameId, tail)
-		// here we should write to disk
+	node, full := frame.newNode()
+	for full {
+		tail := frame.evict()
+		if tail != nil && tail.Dirty {
+			err := pool.write(frameId, tail)
+			if err != nil {
+				return nil, err
+			}
+		}
+		node, full = frame.newNode()
 	}
 
 	return node, nil
