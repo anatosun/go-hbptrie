@@ -114,3 +114,11 @@ type PartialReadError struct {
 func (err *PartialReadError) Error() string {
 	return fmt.Sprintf("partial read: %d/%d", err.Read, err.Total)
 }
+
+type FrameOverflowError struct {
+	Max interface{}
+}
+
+func (err *FrameOverflowError) Error() string {
+	return fmt.Sprintf("frame overflow: max %v", err.Max)
+}
