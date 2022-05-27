@@ -80,7 +80,7 @@ func (l *frame) full() bool {
 
 func (l *frame) add(node *Node) error {
 	if l.full() {
-		return &kverrors.FrameOverflowError{l.allocation}
+		return &kverrors.FrameOverflowError{Max: l.allocation}
 	}
 
 	l.pages[node.Id] = node
