@@ -1,5 +1,9 @@
 package pool
 
+import (
+	"hbtrie/internal/kverrors"
+)
+
 // Frame is a self-managed unit of the buffer pool. It consists in a double linked list of pages.
 // Each page, when queried, is pushed to the head of the list. Pages on the tail of the list are the least recently used.
 // Pages on the tail should thus be evicted first.
@@ -59,7 +63,7 @@ func (l *frame) query(id uint64) *Node {
 }
 
 func (l *frame) newNode() (node *Node, full bool) {
-	if len(l.pages) >= int(l.allocation-1) {
+	if l.full() {
 		return nil, true
 	}
 	l.cursor++
@@ -68,6 +72,20 @@ func (l *frame) newNode() (node *Node, full bool) {
 	l.pages[n.Id] = n
 	l.push(n.Page)
 	return n, false
+}
+
+func (l *frame) full() bool {
+	return len(l.pages) >= int(l.allocation)
+}
+
+func (l *frame) add(node *Node) error {
+	if l.full() {
+		return &kverrors.FrameOverflowError{l.allocation}
+	}
+
+	l.pages[node.Id] = node
+	l.push(node.Page)
+	return nil
 }
 
 func (l *frame) evictTail() *Node {
