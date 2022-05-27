@@ -91,6 +91,12 @@ func (err *InvalidNodeSizeError) Error() string {
 	return fmt.Sprintf("invalid node size: children (%d) and entries (%d) cannot both be superior to 0", err.NumberOfChildren, err.NumberOfEntries)
 }
 
+type InvalidNodeError struct{}
+
+func (err *InvalidNodeError) Error() string {
+	return fmt.Sprintf("pager returned an invalid node")
+}
+
 type UnregisteredError struct{}
 
 func (err *UnregisteredError) Error() string {
