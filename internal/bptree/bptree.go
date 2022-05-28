@@ -19,7 +19,11 @@ func NewBplusTree(pool *pool.Bufferpool) *BPlusTree {
 
 	bpt := &BPlusTree{}
 	bpt.pool = pool
-	bpt.frameId = pool.Register()
+	frame, err := pool.Register()
+	if err != nil {
+		panic(err)
+	}
+	bpt.frameId = frame
 	root, err := bpt.allocate()
 	if err != nil {
 		panic(err)
