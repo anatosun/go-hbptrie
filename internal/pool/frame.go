@@ -78,10 +78,10 @@ func (l *frame) newNode() (node *Node, full bool) {
 	}
 	l.cursor++
 	page := NewPage(l.cursor)
-	n := &Node{Page: page}
-	l.pages[n.Id] = n
-	l.push(n.Page)
-	return n, false
+	node = &Node{Page: page}
+	l.pages[node.Id] = node
+	l.push(node.Page)
+	return node, false
 }
 
 func (l *frame) full() bool {

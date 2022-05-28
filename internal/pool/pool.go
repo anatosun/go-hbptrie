@@ -6,7 +6,7 @@ import (
 )
 
 // number of maximum frames per pool
-const limit = 1000
+const limit = 100000
 
 type Bufferpool struct {
 	frames     map[uint64]*frame
@@ -73,17 +73,17 @@ func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
 
 // Register is used for a client to get a frame allocated in the bufferpool.
 // It returns the id of the frame which should be use for subsequent queries.
-func (pool *Bufferpool) Register() uint64 {
+func (pool *Bufferpool) Register() (uint64, error) {
 
 	r := uint64(1)
 	for pool.frames[r] != nil {
 		r++
 		if r == limit {
-			return 0
+			return 0, &kverrors.BufferPoolLimitError{}
 		}
 	}
 	pool.frames[r] = newFrame(pool.allocation)
-	return r
+	return r, nil
 }
 
 // Unregister deletes the frame with the given id. This operation is irreversible.
