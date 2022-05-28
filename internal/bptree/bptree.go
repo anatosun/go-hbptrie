@@ -80,10 +80,14 @@ func (bpt *BPlusTree) Insert(key [16]byte, value uint64) (success bool, err erro
 
 	if success {
 		bpt.size++
-		return success, nil
+		return success, bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
 	}
 
-	return success, err
+	if err != nil {
+		return success, err
+	}
+
+	return success, bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
 }
 
 // Insert a subtree for a certain key in the B+ tree.
@@ -111,17 +115,19 @@ func (bpt *BPlusTree) Remove(key [16]byte) (value uint64, err error) {
 		node, err := bpt.where(id)
 
 		if err != nil {
+			bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
 			return 0, err
 		}
 
 		e, err := node.DeleteEntryAt(at)
 
 		if err != nil {
+			bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
 			return 0, err
 		}
 		bpt.size--
 
-		return e.Value, err
+		return e.Value, bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
 	}
 
 	return 0, &kverrors.KeyNotFoundError{Value: key}
