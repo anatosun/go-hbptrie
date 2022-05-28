@@ -11,7 +11,6 @@ import (
 var store *BPlusTree
 var values map[[16]byte]uint64
 var filename = "temp_test_data"
-var frame uint64 = 0
 
 const size = 8000
 
@@ -107,6 +106,9 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestPageEviction(t *testing.T) {
+	t.Cleanup(func() {
+		os.Remove(filename)
+	})
 	file, err := os.Create(filename)
 	if err != nil {
 		t.Errorf("could not create temp file: %v", err)
@@ -140,28 +142,117 @@ func TestPageEviction(t *testing.T) {
 		step++
 	}
 
+	err = file.Close()
+	if err != nil {
+		t.Errorf("could not close temp file: %v", err)
+		t.FailNow()
+	}
+
 }
 
 func TestWriteOnDisk(t *testing.T) {
-	frame = store.frameId
-	err := store.Write()
+	t.Cleanup(func() {
+		os.Remove(filename)
+	})
+	file, err := os.Create(filename)
+	if err != nil {
+		t.Errorf("could not create temp file: %v", err)
+		t.FailNow()
+	}
+	store = NewBplusTree(pool.NewBufferpool(file, uint64(10)))
+	step := 0
+	for key, value := range values {
+
+		success, err := store.Insert(key, value)
+		if err != nil {
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
+			t.FailNow()
+		}
+
+		if !success {
+			t.Errorf("[step %d] should be able to insert key: %v", step, key)
+			t.FailNow()
+		}
+
+		v, err := store.Search(key)
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+
+		if v != value {
+			t.Errorf("[step %d] expected %d, got %d", step, value, v)
+			t.FailNow()
+		}
+		step++
+	}
+	err = store.Write()
 	if err != nil {
 		t.Errorf("could not write to disk: %v", err)
 		t.FailNow()
 	}
 
+	file.Close()
+	if err != nil {
+		t.Errorf("could not close temp file: %v", err)
+		t.FailNow()
+	}
+
 }
 
-func TestRetrieveFromDisk(t *testing.T) {
+func TestWriteAndRetrieveFromDisk(t *testing.T) {
 	t.Cleanup(func() {
 		os.Remove(filename)
 	})
+	file, err := os.Create(filename)
+	if err != nil {
+		t.Errorf("could not create temp file: %v", err)
+		t.FailNow()
+	}
+	store = NewBplusTree(pool.NewBufferpool(file, uint64(10)))
+	frame := store.frameId
+	step := 0
+	for key, value := range values {
+
+		success, err := store.Insert(key, value)
+		if err != nil {
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
+			t.FailNow()
+		}
+
+		if !success {
+			t.Errorf("[step %d] should be able to insert key: %v", step, key)
+			t.FailNow()
+		}
+
+		v, err := store.Search(key)
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+
+		if v != value {
+			t.Errorf("[step %d] expected %d, got %d", step, value, v)
+			t.FailNow()
+		}
+		step++
+	}
+	err = store.Write()
+	if err != nil {
+		t.Errorf("could not write to disk: %v", err)
+		t.FailNow()
+	}
+	err = file.Close()
+	if err != nil {
+		t.Errorf("could not close file: %v", err)
+		t.FailNow()
+	}
 	if frame == 0 {
-		t.Errorf("write should precede read")
+		t.Errorf("frame id should not be 0")
 		t.FailNow()
 
 	}
-	file, err := os.Open(filename)
+	file, err = os.Open(filename)
 	if err != nil {
 		t.Errorf("could not create temp file: %v", err)
 		t.FailNow()
@@ -172,7 +263,7 @@ func TestRetrieveFromDisk(t *testing.T) {
 		t.Errorf("could not read from disk: %v", err)
 		t.FailNow()
 	}
-	step := 0
+	step = 0
 	for key, value := range values {
 
 		v, err := store2.Search(key)
