@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"fmt"
 	"hbtrie/internal/kverrors"
 )
 
@@ -26,11 +27,19 @@ func (l *frame) push(p *Page) {
 }
 
 func (l *frame) pop(p *Page) {
+	if p.prev == nil || p.next == nil {
+		fmt.Println(p.Id)
+		fmt.Println(l.tail.Id)
+		l.printLinkedList()
+	}
 	p.prev.next = p.next
 	p.next.prev = p.prev
 }
 
 func (l *frame) boost(p *Page) {
+	if p.Id == l.tail.Id {
+		return
+	}
 	l.pop(p)
 	l.push(p)
 }
@@ -42,17 +51,16 @@ func newFrame(allocation uint64) *frame {
 	}
 
 	l := &frame{
-		head:  NewPage(1),
-		tail:  NewPage(allocation),
-		pages: make(map[uint64]*Node),
-		// dirties: make(map[uint64]*Node),
+		head:       new(Page),
+		tail:       new(Page),
+		pages:      make(map[uint64]*Node),
+		allocation: allocation,
 	}
-	l.allocation = allocation
 	l.head.next = l.tail
 	l.tail.prev = l.head
 	l.pages[l.head.Id] = &Node{Page: l.head}
 	l.pages[l.tail.Id] = &Node{Page: l.tail}
-	l.cursor = 1
+	l.cursor = 0
 	return l
 }
 
@@ -86,25 +94,28 @@ func (l *frame) full() bool {
 	return len(l.pages) >= int(l.allocation)
 }
 
+// add a new page to the frame that was previously evicted.
 func (l *frame) add(node *Node) error {
 	if l.full() {
 		return &kverrors.FrameOverflowError{Max: l.allocation}
 	}
-
+	if node.Id > l.cursor {
+		return &kverrors.InvalidNodeError{}
+	}
 	l.pages[node.Id] = node
 	l.push(node.Page)
 	return nil
 }
 
 // for debuggin purposes
-// func (l *frame) printLinkedList() {
-// 	p := l.head
-// 	for p != nil {
-// 		fmt.Printf("%d ", p.Id)
-// 		p = p.next
-// 	}
-// 	fmt.Println()
-// }
+func (l *frame) printLinkedList() {
+	p := l.head
+	for p != nil {
+		fmt.Printf("%d ", p.Id)
+		p = p.next
+	}
+	fmt.Println()
+}
 
 func (l *frame) evict() *Node {
 	p := l.tail.prev
