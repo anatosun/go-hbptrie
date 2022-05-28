@@ -25,7 +25,7 @@ func (bpt *BPlusTree) Write() error {
 	return bpt.pool.WriteTree(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 }
 
-// Read retrives a B+ Tree from disk according to the BufferPool logic.
+// Read retrieves a B+ Tree from disk according to the BufferPool logic.
 func ReadBpTreeFromDisk(pool *pool.Bufferpool, frameId uint64) (*BPlusTree, error) {
 	rootId, size, err := pool.ReadTree(frameId)
 	if err != nil {
