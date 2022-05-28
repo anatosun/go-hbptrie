@@ -15,7 +15,7 @@ type Bufferpool struct {
 }
 
 func (pool *Bufferpool) metaHeaderSize() uint64 {
-	return 8 + metaSize()*limit
+	return metaSize() + metaSize()*limit
 }
 
 func (pool *Bufferpool) pagePosition(frameId, pageId uint64) uint64 {
