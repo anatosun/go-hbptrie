@@ -153,7 +153,9 @@ func TestWriteOnDisk(t *testing.T) {
 }
 
 func TestRetrieveFromDisk(t *testing.T) {
-	t.Cleanup(cleanup)
+	t.Cleanup(func() {
+		os.Remove(filename)
+	})
 	if frame == 0 {
 		t.Errorf("write should precede read")
 		t.FailNow()
@@ -192,8 +194,4 @@ func TestRetrieveFromDisk(t *testing.T) {
 		t.Errorf("expected size %d, got %d", expected, actual)
 		t.FailNow()
 	}
-}
-
-func cleanup() {
-	os.Remove(filename)
 }
