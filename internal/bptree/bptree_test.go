@@ -10,7 +10,6 @@ import (
 
 var store *BPlusTree
 var values map[[16]byte]uint64
-var filename = "temp_test_data"
 
 const size = 8000
 
@@ -106,6 +105,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestPageEviction(t *testing.T) {
+	filename := "temp_test_data_eviction"
 	t.Cleanup(func() {
 		os.Remove(filename)
 	})
@@ -151,6 +151,7 @@ func TestPageEviction(t *testing.T) {
 }
 
 func TestWriteOnDisk(t *testing.T) {
+	filename := "temp_test_data_write"
 	t.Cleanup(func() {
 		os.Remove(filename)
 	})
@@ -201,6 +202,7 @@ func TestWriteOnDisk(t *testing.T) {
 }
 
 func TestWriteAndRetrieveFromDisk(t *testing.T) {
+	filename := "temp_test_data_write_retrieve"
 	t.Cleanup(func() {
 		os.Remove(filename)
 	})
