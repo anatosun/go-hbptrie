@@ -128,3 +128,18 @@ type FrameOverflowError struct {
 func (err *FrameOverflowError) Error() string {
 	return fmt.Sprintf("frame overflow: max %v", err.Max)
 }
+
+type InvalidFrameIdError struct{}
+
+func (err *InvalidFrameIdError) Error() string {
+	return "the frame id provided is invalid"
+}
+
+type InvalidMetadataError struct {
+	Root interface{}
+	Size interface{}
+}
+
+func (err *InvalidMetadataError) Error() string {
+	return fmt.Sprintf("invalid metadata: root %v, size %v", err.Root, err.Size)
+}
