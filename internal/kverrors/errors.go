@@ -143,3 +143,11 @@ type InvalidMetadataError struct {
 func (err *InvalidMetadataError) Error() string {
 	return fmt.Sprintf("invalid metadata: root %v, size %v", err.Root, err.Size)
 }
+
+type BufferPoolLimitError struct {
+	Limit interface{}
+}
+
+func (err *BufferPoolLimitError) Error() string {
+	return fmt.Sprintf("buffer pool limit reached: %v", err.Limit)
+}
