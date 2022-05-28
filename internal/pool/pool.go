@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"encoding/binary"
 	"hbtrie/internal/kverrors"
 	"os"
 )
@@ -15,7 +16,7 @@ type Bufferpool struct {
 }
 
 func (pool *Bufferpool) metaHeaderSize() uint64 {
-	return metaSize() + metaSize()*limit
+	return 8 + metaSize()*limit
 }
 
 func (pool *Bufferpool) pagePosition(frameId, pageId uint64) uint64 {
@@ -216,6 +217,71 @@ func (pool *Bufferpool) writeMetadata(frameID uint64, meta metadata) error {
 
 	return nil
 
+}
+
+func (pool *Bufferpool) WriteTrie(rootFrame uint64) error {
+	size := len(pool.frames)
+	root, err := pool.GetRootPageId(rootFrame)
+	if err != nil {
+		return err
+	}
+	meta := metadata{root, uint64(size)}
+
+	for id, frame := range pool.frames {
+		r, err := pool.GetRootPageId(id)
+		if err != nil {
+			return err
+		}
+
+		pool.WriteTree(id, r, frame.cursor)
+
+	}
+
+	err = pool.writeMetadata(root, meta)
+	if err != nil {
+		return err
+	}
+
+	data := make([]byte, 8)
+	binary.LittleEndian.PutUint64(data, uint64(rootFrame))
+	nbytes, err := pool.file.WriteAt(data, 0)
+	if err != nil {
+		return err
+	}
+	if nbytes != len(data) {
+		return &kverrors.PartialWriteError{Total: len(data), Written: nbytes}
+	}
+
+	return nil
+}
+
+func (pool *Bufferpool) ReadTrie() (uint64, uint64, error) {
+	data := make([]byte, 8)
+	nbytes, err := pool.file.ReadAt(data, 0)
+	if err != nil {
+		return 0, 0, err
+	}
+	if nbytes != len(data) {
+		return 0, 0, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
+	}
+	rootFrame := binary.LittleEndian.Uint64(data)
+	_, _, err = pool.ReadTree(rootFrame)
+	if err != nil {
+		return 0, 0, err
+	}
+	meta, err := pool.readMetadata(rootFrame)
+	if err != nil {
+		return rootFrame, meta.size, err
+	}
+
+	for id := uint64(1); id < meta.size; id++ {
+		_, _, err := pool.ReadTree(id)
+		if err != nil {
+			return rootFrame, meta.size, err
+		}
+	}
+
+	return rootFrame, meta.size, nil
 }
 
 func (pool *Bufferpool) WriteTree(frameId, root uint64, size uint64) error {

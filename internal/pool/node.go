@@ -118,7 +118,9 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	if cursor != int(NodeHeaderLen()) {
 		return &kverrors.InvalidSizeError{Got: cursor, Should: int(NodeHeaderLen())}
 	}
-
+	if n.NumberOfEntries > uint64(len(n.Entries)) {
+		return &kverrors.OverflowError{Type: "Number of entries", Actual: n.NumberOfEntries, Max: len(n.Entries)}
+	}
 	for i := 0; i < int(n.NumberOfEntries); i++ {
 		e := Entry{}
 		err := e.UnmarshalEntry(data[cursor : cursor+EntryLen()])
@@ -128,7 +130,9 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 		n.Entries[i] = e
 		cursor += EntryLen()
 	}
-
+	if n.NumberOfChildren > uint64(len(n.Children)) {
+		return &kverrors.OverflowError{Type: "Number of children", Actual: n.NumberOfChildren, Max: len(n.Children)}
+	}
 	for i := 0; i < int(n.NumberOfChildren); i++ {
 		n.Children[i] = bin.Uint64(data[cursor : cursor+8])
 		cursor += 8
