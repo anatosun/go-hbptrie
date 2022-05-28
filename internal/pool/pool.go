@@ -5,14 +5,24 @@ import (
 	"os"
 )
 
+// number of maximum frames per pool
+const limit = 1000
+
 type Bufferpool struct {
 	frames     map[uint64]*frame
 	allocation uint64
 	file       *os.File
 }
 
-func (pool *Bufferpool) position(frameId, pageId uint64) uint64 {
-	return frameId*pool.allocation + pageId*uint64(PageSize)
+func (pool *Bufferpool) metaHeaderSize() uint64 {
+	return 8 + metaSize()*limit
+}
+
+func (pool *Bufferpool) pagePosition(frameId, pageId uint64) uint64 {
+	return pool.metaHeaderSize() + frameId*pool.allocation + pageId*uint64(PageSize)
+}
+func (pool *Bufferpool) metaPosition(frameId uint64) uint64 {
+	return pool.metaHeaderSize() + frameId*pool.metaHeaderSize()
 }
 
 // NewBufferpool returns a new bufferpool with the given underlying file and allocation size.
@@ -23,7 +33,7 @@ func NewBufferpool(file *os.File, allocation uint64) *Bufferpool {
 }
 
 func (pool *Bufferpool) write(frameId uint64, page *Node) error {
-	position := pool.position(frameId, page.Id)
+	position := pool.pagePosition(frameId, page.Id)
 	data, err := page.MarshalBinary()
 	if err != nil {
 		return err
@@ -41,7 +51,7 @@ func (pool *Bufferpool) write(frameId uint64, page *Node) error {
 
 func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
 
-	position := pool.position(frameId, pageId)
+	position := pool.pagePosition(frameId, pageId)
 	data := make([]byte, PageSize)
 	nbytes, err := pool.file.ReadAt(data, int64(position))
 	if err != nil {
@@ -65,9 +75,12 @@ func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
 // It returns the id of the frame which should be use for subsequent queries.
 func (pool *Bufferpool) Register() uint64 {
 
-	r := uint64(0)
+	r := uint64(1)
 	for pool.frames[r] != nil {
 		r++
+		if r == limit {
+			return 0
+		}
 	}
 	pool.frames[r] = newFrame(pool.allocation)
 	return r
@@ -160,5 +173,119 @@ func (pool *Bufferpool) GetRootPageId(frameId uint64) (uint64, error) {
 	}
 
 	return frame.getRootPageId(), nil
+
+}
+
+func (pool *Bufferpool) readMetadata(frameID uint64) (metadata, error) {
+	meta := metadata{0, 0}
+
+	position := pool.metaPosition(frameID)
+	data := make([]byte, metaSize())
+	nbytes, err := pool.file.ReadAt(data, int64(position))
+	if err != nil {
+		return meta, err
+	}
+	if nbytes != len(data) {
+		return meta, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
+	}
+	err = meta.UnmarshalBinary(data)
+	if err != nil {
+		return meta, err
+	}
+	if meta.root == 0 || meta.size == 0 {
+		return meta, &kverrors.InvalidMetadataError{Root: meta.root, Size: meta.size}
+	}
+
+	return meta, nil
+
+}
+
+func (pool *Bufferpool) writeMetadata(frameID uint64, meta metadata) error {
+	position := pool.metaPosition(frameID)
+	data, err := meta.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	nbytes, err := pool.file.WriteAt(data, int64(position))
+	if err != nil {
+		return err
+	}
+	if nbytes != len(data) {
+		return &kverrors.PartialWriteError{Total: len(data), Written: nbytes}
+	}
+
+	return nil
+
+}
+
+func (pool *Bufferpool) WriteTree(frameId, root uint64, size uint64) error {
+
+	frame := pool.frames[frameId]
+	if frame == nil {
+		return &kverrors.UnregisteredError{}
+	}
+
+	err := pool.writeMetadata(frameId, metadata{root: root, size: size})
+	if err != nil {
+		return err
+	}
+
+	for _, node := range frame.pages {
+		if node.Dirty {
+			err := pool.write(frameId, node)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+
+}
+
+func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
+	if frameId > limit {
+		return 0, 0, &kverrors.InvalidFrameIdError{}
+	}
+
+	meta, err := pool.readMetadata(frameId)
+	if err != nil {
+		return 0, 0, err
+	}
+	rootId := meta.root
+	size := meta.size
+	root, err := pool.io(frameId, rootId)
+	if err != nil {
+		return 0, 0, err
+	}
+	if root.Page == nil {
+		return 0, 0, &kverrors.InvalidNodeError{}
+	}
+
+	frame := newFrame(pool.allocation)
+	frame.cursor = size
+	pool.frames[frameId] = frame
+	err = frame.add(root)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, childID := range root.Children {
+		if childID == 0 {
+			continue
+		}
+		if frame.full() {
+			break
+		}
+		child, err := pool.io(frameId, childID)
+		if err != nil {
+			return 0, 0, err
+		}
+		if child.Page == nil {
+			return 0, 0, &kverrors.InvalidNodeError{}
+		}
+		frame.add(child)
+
+	}
+	return rootId, size, nil
 
 }
