@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"fmt"
 	"hbtrie/internal/kverrors"
 )
 
@@ -27,11 +26,6 @@ func (l *frame) push(p *Page) {
 }
 
 func (l *frame) pop(p *Page) {
-	if p.prev == nil || p.next == nil {
-		fmt.Println(p.Id)
-		fmt.Println(l.tail.Id)
-		l.printLinkedList()
-	}
 	p.prev.next = p.next
 	p.next.prev = p.prev
 }
@@ -108,14 +102,14 @@ func (l *frame) add(node *Node) error {
 }
 
 // for debuggin purposes
-func (l *frame) printLinkedList() {
-	p := l.head
-	for p != nil {
-		fmt.Printf("%d ", p.Id)
-		p = p.next
-	}
-	fmt.Println()
-}
+// func (l *frame) printLinkedList() {
+// 	p := l.head
+// 	for p != nil {
+// 		fmt.Printf("%d ", p.Id)
+// 		p = p.next
+// 	}
+// 	fmt.Println()
+// }
 
 func (l *frame) evict() *Node {
 	p := l.tail.prev
