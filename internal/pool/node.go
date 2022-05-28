@@ -103,7 +103,7 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	if len(data) > capacity {
 		return &kverrors.InvalidSizeError{Got: len(data), Should: capacity}
 	}
-	n.Dirty = true
+	n.Dirty = false
 	bin := binary.LittleEndian
 	n.Id = bin.Uint64(data[0:8])
 	n.NumberOfEntries = bin.Uint64(data[8:16])
