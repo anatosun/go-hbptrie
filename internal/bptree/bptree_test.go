@@ -2,7 +2,6 @@ package bptree
 
 import (
 	"crypto/sha1"
-	"fmt"
 	"hbtrie/internal/pool"
 	"math/rand"
 	"os"
@@ -189,7 +188,6 @@ func TestRetrieveFromDisk(t *testing.T) {
 
 	expected := len(values)
 	actual := int(store2.Len())
-	fmt.Println(actual)
 	if expected != actual {
 		t.Errorf("expected size %d, got %d", expected, actual)
 		t.FailNow()
