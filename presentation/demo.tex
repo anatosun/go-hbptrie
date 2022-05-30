@@ -102,6 +102,34 @@
     	\item Storing pageId in the leaf to reference a B+ subtree
     \end{itemize}
 \end{frame}
+\begin{frame}[t]
+	\frametitle{Implementation - Chunking}
+	\begin{figure}[h!]
+		\includegraphics[scale=0.19]{code_chunking}
+	\end{figure}
+	\centering
+\end{frame}
+\begin{frame}[t]
+	\frametitle{Implementation - Insert}
+	\begin{figure}[h!]
+		\includegraphics[scale=0.19]{code_insert}
+	\end{figure}
+	\centering
+\end{frame}
+\begin{frame}[t]
+	\frametitle{Implementation - Search}
+	\begin{figure}[h!]
+		\includegraphics[scale=0.18]{code_search}
+	\end{figure}
+	\centering
+\end{frame}
+\begin{frame}[t]
+	\frametitle{Implementation - Page frame}
+	\begin{figure}[h!]
+		\includegraphics[scale=0.16]{code_page}
+	\end{figure}
+	\centering
+\end{frame}
 \section{Performance}
 \begin{frame}[t]
     \frametitle{Performance}
@@ -121,6 +149,13 @@
 		\qquad
 		\subfloat[\centering With extension]{{\includegraphics[scale=0.65]{skew_result} }}%
 	\end{figure}
+\end{frame}
+\begin{frame}[t]
+	\frametitle{Possible improvements}
+	Performance of Range scans are bad in comparison with B+ tree.
+	
+	Write Buffer index improves the write throughput and lowers write amplifications
+	
 \end{frame}
 \section{Discussion}
 \end{document}
