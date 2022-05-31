@@ -22,8 +22,11 @@ func EntryLen() int {
 
 func (e *Entry) MarshalEntry() ([]byte, error) {
 	buf := make([]byte, EntryLen())
-	copy(buf[:16], e.Key[:])
-	binary.LittleEndian.PutUint64(buf[16:], e.Value)
+	if e.IsTree {
+		buf[0] = 1
+	}
+	copy(buf[1:17], e.Key[:])
+	binary.LittleEndian.PutUint64(buf[17:], e.Value)
 	if len(buf) != EntryLen() {
 		return nil, &kverrors.BufferOverflowError{Max: EntryLen(), Cursor: len(buf)}
 	}
@@ -34,7 +37,10 @@ func (e *Entry) UnmarshalEntry(data []byte) error {
 	if len(data) != EntryLen() {
 		return fmt.Errorf("invalid Entry size: %d", len(data))
 	}
-	copy(e.Key[:], data[:16])
-	e.Value = binary.LittleEndian.Uint64(data[16:])
+	if data[0] == 1 {
+		e.IsTree = true
+	}
+	copy(e.Key[:], data[1:17])
+	e.Value = binary.LittleEndian.Uint64(data[17:])
 	return nil
 }
