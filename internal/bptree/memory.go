@@ -19,7 +19,7 @@ func (bpt *BPlusTree) allocate() (uint64, error) {
 
 // Write writes the tree to disk according to the BufferPool logic.
 func (bpt *BPlusTree) Write() error {
-	return bpt.pool.WriteTree(bpt.frameId, bpt.root.Id, uint64(bpt.size))
+	return bpt.pool.WriteTree(bpt.frameId)
 }
 
 // Read retrieves a B+ Tree from disk according to the BufferPool logic.

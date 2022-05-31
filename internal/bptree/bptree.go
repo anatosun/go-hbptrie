@@ -33,7 +33,7 @@ func NewBplusTree(pool *pool.Bufferpool) *BPlusTree {
 		panic(err)
 	}
 
-	err = pool.SetRootPageId(bpt.frameId, bpt.root.Id)
+	err = pool.SetRoot(bpt.frameId, bpt.root.Id)
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +50,7 @@ func LoadBplusTree(pool *pool.Bufferpool, frameId uint64) *BPlusTree {
 	bpt.pool = pool
 	bpt.frameId = frameId
 	// Retrieve root page id from frame
-	root, err := pool.GetRootPageId(bpt.frameId)
+	root, err := pool.GetRoot(bpt.frameId)
 	if err != nil {
 		panic(err)
 	}
@@ -80,14 +80,14 @@ func (bpt *BPlusTree) Insert(key [16]byte, value uint64) (success bool, err erro
 
 	if success {
 		bpt.size++
-		return success, bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
+		return success, bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 	}
 
 	if err != nil {
 		return success, err
 	}
 
-	return success, bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
+	return success, bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 }
 
 // Insert a subtree for a certain key in the B+ tree.
@@ -115,19 +115,19 @@ func (bpt *BPlusTree) Remove(key [16]byte) (value uint64, err error) {
 		node, err := bpt.where(id)
 
 		if err != nil {
-			bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
+			bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 			return 0, err
 		}
 
 		e, err := node.DeleteEntryAt(at)
 
 		if err != nil {
-			bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
+			bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 			return 0, err
 		}
 		bpt.size--
 
-		return e.Value, bpt.pool.SetRootPageId(bpt.frameId, bpt.root.Id)
+		return e.Value, bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 	}
 
 	return 0, &kverrors.KeyNotFoundError{Value: key}
