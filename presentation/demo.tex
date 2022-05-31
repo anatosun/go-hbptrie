@@ -53,6 +53,9 @@
     \begin{itemize}
     	\item Key space is divided into buckets. Every bucket has its own HB+ trie
     	\item High disk throughput due to append-only disk layout
+    	 \begin{itemize}
+    		\item Regular compaction needed
+    	\end{itemize}
     	\item Disk updates are delayed with a \textbf{Write buffer index}
     \end{itemize}
 \end{frame}
@@ -78,18 +81,28 @@
 	\end{itemize}	
 \end{frame}
 \begin{frame}[t]
-	\frametitle{Overview}
+	\frametitle{Overview - Chunking}
 	\begin{figure}[h!]
 		\includegraphics[scale=0.7]{logical_layout}
-		\caption{Chunking}
 	\end{figure}
 	\centering	
 \end{frame}
 \begin{frame}[t]
-	\frametitle{Overview}
+	\frametitle{Overview - Disk layout}
 	\begin{figure}[h!]
 		\includegraphics[scale=0.5]{disk_layout}
-		\caption{Disk layout}
+	\end{figure}
+	\centering	
+\end{frame}
+\begin{frame}[t]
+	\frametitle{Overview - Write Buffer Index}
+	Entries are added to the disk file directly
+	
+	Write buffer index consists of a hashtable, where keys are hashed
+	
+	Returns the offset in the file
+	\begin{figure}[h!]
+		\includegraphics[scale=0.7]{writebufferindex}
 	\end{figure}
 	\centering	
 \end{frame}
