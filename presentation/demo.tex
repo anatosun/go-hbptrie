@@ -36,10 +36,10 @@
     \frametitle{Motivations}
        Variable-length sized keys
     
-    Disadvantages with B+ tree or LSM-tree:
+    Disadvantages of B+ trees or LSM-trees:
     \begin{itemize}
     	\item Fanout degree decreases if key length increases
-    	\item Tree Height grows to maintain the same capacity
+    	\item Tree height grows for the same capacity to maintain
     	\item Benefit of prefix B+ tree becomes limited for randomly distributed keys
     	\item B+ tree nodes are randomly scattered on disk when it ages 
     \end{itemize}
@@ -145,11 +145,36 @@
 \end{frame}
 \section{Performance}
 \begin{frame}[t]
+	\frametitle{Performance}
+	\begin{itemize}
+		\item \textbf{worst} - avg. 198 bytes key length
+		\begin{itemize}
+			\item 20 levels of nested prefixes with each 2 branches
+		\end{itemize}
+		\item \textbf{small} - avg. 65 bytes key length
+		\begin{itemize}
+			\item 100 randomly generated prefixes
+			\item 10000 keys share a common prefix
+		\end{itemize}
+		\item \textbf{2-level} - avg. 64 bytes key length
+		\begin{itemize}
+			\item 2 levels of nested prefixes with each 192 branches
+		\end{itemize}
+	\end{itemize}
+\end{frame}
+\begin{frame}[t]
     \frametitle{Performance}
     \begin{figure}[h!]
     	\includegraphics[scale=0.5]{comparision_bplus}
     \end{figure}
     \centering
+\end{frame}
+\begin{frame}[t]
+	\frametitle{Performance}
+	\begin{figure}[h!]
+		\includegraphics[scale=0.35]{performance_rw}
+	\end{figure}
+	\centering
 \end{frame}
 \section{Possible improvements}
 \begin{frame}[t]
@@ -169,10 +194,20 @@
 \end{frame}
 \begin{frame}[t]
 	\frametitle{Possible improvements}
-	Performance of Range scans are bad in comparison with B+ tree.
-	
-	Write Buffer index improves the write throughput and lowers write amplifications
+	\begin{itemize}
+		\item Performance of Range scans are bad in comparison with B+ tree.
+		\item Write Buffer index improves the write throughput and lowers write amplifications
+	\end{itemize}
 	
 \end{frame}
 \section{Discussion}
+\begin{frame}[t]
+	\frametitle{Discussion}
+	\begin{itemize}
+		\item Leaf Node Extension \& Write buffer index are required
+		\item Coachbase Server implements ForestDB storage engine (HB+ trie implementation)
+		\item We would use HB+ trie for variable length keys as it combines the best properties of B+ trees and LSM trees
+	\end{itemize}
+	
+\end{frame}
 \end{document}
