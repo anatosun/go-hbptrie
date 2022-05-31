@@ -5,11 +5,12 @@ import (
 )
 
 type KeyNotFoundError struct {
-	Value interface{}
+	Key     interface{}
+	Closest interface{}
 }
 
 func (err *KeyNotFoundError) Error() string {
-	return fmt.Sprintf("key %v not found", err.Value)
+	return fmt.Sprintf("key %v not found", err.Key)
 }
 
 type InsertionError struct {
@@ -159,4 +160,10 @@ type InvalidNodeIOError struct {
 
 func (err *InvalidNodeIOError) Error() string {
 	return fmt.Sprintf("invalid node io: node %v, cursor %v", err.Node, err.Cursor)
+}
+
+type UnspecifiedFileError struct{}
+
+func (err *UnspecifiedFileError) Error() string {
+	return "unspecified file: please specify a file"
 }
