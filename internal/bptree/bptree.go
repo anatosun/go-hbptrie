@@ -1,6 +1,7 @@
 package bptree
 
 import (
+	"fmt"
 	"hbtrie/internal/kverrors"
 	"hbtrie/internal/operations"
 	"hbtrie/internal/pool"
@@ -130,7 +131,7 @@ func (bpt *BPlusTree) Remove(key [16]byte) (value uint64, err error) {
 		return e.Value, bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 	}
 
-	return 0, &kverrors.KeyNotFoundError{Value: key}
+	return 0, &kverrors.KeyNotFoundError{Key: key}
 
 }
 
@@ -148,7 +149,7 @@ func (bpt *BPlusTree) Search(key [16]byte) (uint64, error) {
 		return n.Entries[at].Value, err
 	}
 
-	return 0, &kverrors.KeyNotFoundError{Value: key}
+	return 0, &kverrors.KeyNotFoundError{Key: key}
 
 }
 
@@ -167,7 +168,7 @@ func (bpt *BPlusTree) SearchTreeEntry(key [16]byte) (*pool.Entry, error) {
 		return &n.Entries[at], err
 	}
 
-	return nil, &kverrors.KeyNotFoundError{Value: key}
+	return nil, &kverrors.KeyNotFoundError{Key: key}
 
 }
 
@@ -414,4 +415,40 @@ func (bpt *BPlusTree) full(n *pool.Node) bool {
 		return n.NumberOfEntries == (2*bpt.fanout)-1
 	}
 	return n.NumberOfEntries == (2*bpt.order)-1
+}
+
+func (bpt *BPlusTree) Compare(to *BPlusTree) (bool, string) {
+	comp, res := bpt.root.Compare(to.root)
+	if !comp {
+		return false, fmt.Sprintf("root is different: %s", res)
+	}
+	if bpt.order != to.order {
+		return false, "order is different"
+	}
+	if bpt.fanout != to.fanout {
+		return false, "fanout is different"
+	}
+	nodes, err := bpt.pool.GetNodes(bpt.frameId)
+	if err != nil {
+		return false, "error getting nodes"
+	}
+
+	toNodes, err := to.pool.GetNodes(to.frameId)
+	if err != nil {
+		return false, "error getting nodes"
+	}
+
+	for id, node := range nodes {
+		if node == nil && toNodes[id] == nil {
+			continue
+		} else if node == nil || toNodes[id] == nil {
+			return false, fmt.Sprintf("nodes %d are different", id)
+		}
+		comp, res := node.Compare(toNodes[id])
+		if !comp {
+			return false, fmt.Sprintf("%s is different in node %d", res, id)
+		}
+	}
+
+	return true, ""
 }

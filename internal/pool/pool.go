@@ -2,7 +2,6 @@ package pool
 
 import (
 	"encoding/binary"
-	"fmt"
 	"hbtrie/internal/kverrors"
 	"os"
 	"sort"
@@ -76,6 +75,19 @@ func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
 	return node, nil
 }
 
+func (pool *Bufferpool) getFrameIds() []uint64 {
+	keys := make([]uint64, 0, len(pool.frames))
+
+	for k := range pool.frames {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	return keys
+}
+
 // Register is used for a client to get a frame allocated in the bufferpool.
 // It returns the id of the frame which should be use for subsequent queries.
 func (pool *Bufferpool) Register() (uint64, error) {
@@ -106,9 +118,10 @@ func (pool *Bufferpool) Query(frameId, pageID uint64) (node *Node, err error) {
 	}
 
 	node = frame.query(pageID)
-	if node == nil {
+	for node == nil {
 		node, err = pool.io(frameId, pageID)
 		if err != nil {
+			// log.Default().Printf("Query: %d %d: %v", frameId, pageID, err)
 			return nil, err
 		}
 		for frame.full() {
@@ -117,9 +130,11 @@ func (pool *Bufferpool) Query(frameId, pageID uint64) (node *Node, err error) {
 		}
 		err = frame.add(node)
 		if err != nil {
+			// log.Default().Printf("Query: %d %d: %v", frameId, pageID, err)
 			return nil, err
 		}
 	}
+	// log.Default().Printf("Query: %d %d: success", frameId, pageID)
 
 	return node, nil
 
@@ -181,6 +196,7 @@ func (pool *Bufferpool) GetRoot(frameId uint64) (uint64, error) {
 
 }
 
+// Update allows to update the root/size information of the b+ tree in a given frameId.
 func (pool *Bufferpool) Update(frameId, root, size uint64) error {
 
 	frame := pool.frames[frameId]
@@ -235,20 +251,63 @@ func (pool *Bufferpool) writeMetadata(frameID uint64, meta metadata) error {
 
 }
 
-func (pool *Bufferpool) getFrameIds() []uint64 {
-	keys := make([]uint64, 0, len(pool.frames))
+func (pool *Bufferpool) WriteTree(frameId uint64) error {
 
-	for k := range pool.frames {
-		keys = append(keys, k)
+	frame := pool.frames[frameId]
+	if frame == nil {
+		return &kverrors.UnregisteredError{}
 	}
 
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
-	return keys
+	err := pool.writeMetadata(frameId, metadata{root: frame.root, size: frame.size, cursor: frame.cursor})
+	if err != nil {
+		return err
+	}
+
+	for _, node := range frame.pages {
+		if node.Dirty {
+			err := pool.write(frameId, node)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+
 }
 
-func (pool *Bufferpool) WriteTrie(rootFrame uint64) error {
+func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
+	if frameId > limit {
+		return 0, 0, &kverrors.InvalidFrameIdError{}
+	}
+
+	meta, err := pool.readMetadata(frameId)
+	if err != nil {
+		return 0, 0, err
+	}
+	rootId := meta.root
+	size := meta.size
+	root, err := pool.io(frameId, rootId)
+	if err != nil {
+
+		return 0, 0, err
+	}
+	if root.Page == nil {
+
+		return 0, 0, &kverrors.InvalidNodeError{}
+	}
+
+	frame := newFrame(pool.allocation)
+	frame.root = rootId
+	frame.size = size
+	frame.cursor = meta.cursor
+	pool.frames[frameId] = frame
+
+	return rootId, size, nil
+
+}
+
+func (pool *Bufferpool) WriteTrie() error {
 	frameIds := pool.getFrameIds()
 	nframes := len(frameIds)
 	if nframes == 0 {
@@ -288,8 +347,11 @@ func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, err error) {
 	for id := uint64(1); id <= nframes; id++ {
 		if id == 1 {
 			root, size, err = pool.ReadTree(id)
-			if err != nil || root == 0 {
+			if err != nil {
 				return 0, 0, err
+			}
+			if root == 0 {
+				return 0, 0, &kverrors.InvalidNodeError{}
 			}
 			continue
 		}
@@ -298,69 +360,10 @@ func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, err error) {
 			return 0, 0, err
 		}
 		if r == 0 {
-			return root, size, nil
+			return root, size, &kverrors.InvalidNodeError{}
 		}
 
 	}
 
 	return root, size, nil
-}
-
-func (pool *Bufferpool) WriteTree(frameId uint64) error {
-
-	frame := pool.frames[frameId]
-	if frame == nil {
-		return &kverrors.UnregisteredError{}
-	}
-
-	err := pool.writeMetadata(frameId, metadata{root: frame.root, size: frame.size, cursor: frame.cursor})
-	if err != nil {
-		return err
-	}
-
-	for _, node := range frame.pages {
-		if node.Dirty {
-			err := pool.write(frameId, node)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-
-}
-
-func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
-	if frameId > limit {
-		return 0, 0, &kverrors.InvalidFrameIdError{}
-	}
-
-	meta, err := pool.readMetadata(frameId)
-	if err != nil {
-		fmt.Println("error on frameid", frameId, err)
-		return 0, 0, err
-	}
-	rootId := meta.root
-	size := meta.size
-	root, err := pool.io(frameId, rootId)
-	if err != nil {
-		fmt.Println("error on root", rootId, err)
-
-		return 0, 0, err
-	}
-	if root.Page == nil {
-		fmt.Println("error on root", rootId, err)
-
-		return 0, 0, &kverrors.InvalidNodeError{}
-	}
-
-	frame := newFrame(pool.allocation)
-	frame.root = rootId
-	frame.size = size
-	frame.cursor = meta.cursor
-	pool.frames[frameId] = frame
-
-	return rootId, size, nil
-
 }

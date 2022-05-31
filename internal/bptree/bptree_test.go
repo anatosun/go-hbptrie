@@ -201,22 +201,33 @@ func TestWriteOnDisk(t *testing.T) {
 
 }
 
-func TestWriteAndRetrieveFromDisk(t *testing.T) {
-	filename := "temp_test_data_write_retrieve"
-	t.Cleanup(func() {
-		os.Remove(filename)
-	})
-	file, err := os.Create(filename)
+func TestCompareSimilar(t *testing.T) {
+	filename1 := "temp_test_data_write1"
+
+	file1, err := os.Create(filename1)
 	if err != nil {
 		t.Errorf("could not create temp file: %v", err)
 		t.FailNow()
 	}
-	store = NewBplusTree(pool.NewBufferpool(file, uint64(10)))
-	frame := store.frameId
+	filename2 := "temp_test_data_write2"
+	t.Cleanup(func() {
+
+	})
+	file2, err := os.Create(filename2)
+	if err != nil {
+		t.Errorf("could not create temp file: %v", err)
+		t.FailNow()
+	}
+	t.Cleanup(func() {
+		os.Remove(filename1)
+		os.Remove(filename2)
+	})
+	store_1 := NewBplusTree(pool.NewBufferpool(file1, uint64(10)))
+	store_2 := NewBplusTree(pool.NewBufferpool(file2, uint64(10)))
 	step := 0
 	for key, value := range values {
 
-		success, err := store.Insert(key, value)
+		success, err := store_1.Insert(key, value)
 		if err != nil {
 			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
 			t.FailNow()
@@ -227,7 +238,7 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 			t.FailNow()
 		}
 
-		v, err := store.Search(key)
+		v, err := store_1.Search(key)
 		if err != nil {
 			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
 			t.FailNow()
@@ -237,38 +248,76 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 			t.Errorf("[step %d] expected %d, got %d", step, value, v)
 			t.FailNow()
 		}
-		step++
-	}
-	err = store.Write()
-	if err != nil {
-		t.Errorf("could not write to disk: %v", err)
-		t.FailNow()
-	}
-	err = file.Close()
-	if err != nil {
-		t.Errorf("could not close file: %v", err)
-		t.FailNow()
-	}
-	if frame == 0 {
-		t.Errorf("frame id should not be 0")
-		t.FailNow()
+
+		success, err = store_2.Insert(key, value)
+		if err != nil {
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
+			t.FailNow()
+		}
+
+		if !success {
+			t.Errorf("[step %d] should be able to insert key: %v", step, key)
+			t.FailNow()
+		}
+
+		v, err = store_2.Search(key)
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+
+		if v != value {
+			t.Errorf("[step %d] expected %d, got %d", step, value, v)
+			t.FailNow()
+		}
 
 	}
-	file, err = os.Open(filename)
+
+	comp, res := store_1.Compare(store_2)
+	if !comp {
+		t.Errorf("expected same store: %s", res)
+		t.FailNow()
+	}
+}
+
+func TestCompareDisimilar(t *testing.T) {
+	filename1 := "temp_test_data_write1"
+
+	file1, err := os.Create(filename1)
 	if err != nil {
 		t.Errorf("could not create temp file: %v", err)
 		t.FailNow()
 	}
+	filename2 := "temp_test_data_write2"
+	t.Cleanup(func() {
 
-	store2, err := ReadBpTreeFromDisk(pool.NewBufferpool(file, uint64(10)), frame)
+	})
+	file2, err := os.Create(filename2)
 	if err != nil {
-		t.Errorf("could not read from disk: %v", err)
+		t.Errorf("could not create temp file: %v", err)
 		t.FailNow()
 	}
-	step = 0
+	t.Cleanup(func() {
+		os.Remove(filename1)
+		os.Remove(filename2)
+	})
+	store_1 := NewBplusTree(pool.NewBufferpool(file1, uint64(10)))
+	store_2 := NewBplusTree(pool.NewBufferpool(file2, uint64(10)))
+	step := 0
 	for key, value := range values {
 
-		v, err := store2.Search(key)
+		success, err := store_1.Insert(key, value)
+		if err != nil {
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
+			t.FailNow()
+		}
+
+		if !success {
+			t.Errorf("[step %d] should be able to insert key: %v", step, key)
+			t.FailNow()
+		}
+
+		v, err := store_1.Search(key)
 		if err != nil {
 			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
 			t.FailNow()
@@ -278,13 +327,62 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 			t.Errorf("[step %d] expected %d, got %d", step, value, v)
 			t.FailNow()
 		}
-		step++
+
+		success, err = store_2.Insert(key, value)
+		if err != nil {
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
+			t.FailNow()
+		}
+
+		if !success {
+			t.Errorf("[step %d] should be able to insert key: %v", step, key)
+			t.FailNow()
+		}
+
+		v, err = store_2.Search(key)
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+
+		if v != value {
+			t.Errorf("[step %d] expected %d, got %d", step, value, v)
+			t.FailNow()
+		}
+
+	}
+	for key, value := range values {
+		new := value - 1
+		success, err := store_2.Insert(key, new)
+
+		if err != nil {
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
+			t.FailNow()
+		}
+
+		if success {
+			t.Errorf("[step %d] should not be able to insert new key: %v", step, key)
+			t.FailNow()
+		}
+
+		v, err := store_2.Search(key)
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+
+		if v != new {
+			t.Errorf("[step %d] expected %d, got %d", step, new, v)
+			t.FailNow()
+		}
+
+		break
+
 	}
 
-	expected := len(values)
-	actual := int(store2.Len())
-	if expected != actual {
-		t.Errorf("expected size %d, got %d", expected, actual)
+	comp, _ := store_1.Compare(store_2)
+	if comp {
+		t.Errorf("expected different store")
 		t.FailNow()
 	}
 }
