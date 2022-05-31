@@ -211,3 +211,73 @@ func TestInsertWithPageEviction(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestWriteAndRetrieveFromDisk(t *testing.T) {
+	filename := "test_write_and_retrieve_from_disk"
+	file, err := os.Create(filename)
+	if err != nil {
+		t.Errorf("while creating file '%v': %v", filename, err)
+		t.FailNow()
+	}
+	t.Cleanup(func() {
+		file.Close()
+		os.Remove(filename)
+	})
+	store = NewHBPlusTrie(16, pool.NewBufferpool(file, uint64(5)))
+
+	step := 0
+	for key, value := range values {
+
+		err := store.Insert(key[:], value)
+		if err != nil {
+			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
+			t.FailNow()
+		}
+
+		v, err := store.Search(key[:])
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+
+		if v != value {
+			t.Errorf("[step %d] expected %v, got %v", step, value, v)
+			t.FailNow()
+		}
+
+		step++
+	}
+	store.Write()
+	stat, err := os.Stat(filename)
+	if err != nil {
+		t.Errorf("while getting file stats: %v", err)
+		t.FailNow()
+
+	}
+	if stat.Size() == 0 {
+		t.Errorf("file size is 0")
+		t.FailNow()
+	}
+
+	store2, err := Read(pool.NewBufferpool(file, uint64(5)))
+	if err != nil {
+		t.Errorf("while reading from file: %v", err)
+		t.FailNow()
+	}
+	step = 0
+	for key, value := range values {
+
+		v, err := store2.Search(key[:])
+		if err != nil {
+			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
+			t.FailNow()
+		}
+
+		if v != value {
+			t.Errorf("[step %d] expected %v, got %v", step, value, v)
+			t.FailNow()
+		}
+
+		step++
+	}
+}
