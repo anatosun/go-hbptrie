@@ -2,6 +2,7 @@ package pool
 
 import (
 	"encoding/binary"
+	"fmt"
 	"hbtrie/internal/kverrors"
 	"unsafe"
 )
@@ -139,4 +140,35 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	}
 
 	return nil
+}
+
+func (n *Node) Compare(to *Node) (bool, string) {
+	// if n.Id != to.Id {
+	// 	return false
+	// }
+	if n.NumberOfEntries != to.NumberOfEntries {
+		return false, "number of entries"
+	}
+	if n.NumberOfChildren != to.NumberOfChildren {
+		return false, "number of children"
+	}
+	// if n.Next != to.Next {
+	// 	return false
+	// }
+	// if n.Prev != to.Prev {
+	// 	return false
+	// }
+	for i := 0; i < int(n.NumberOfEntries); i++ {
+
+		comp, res := n.Entries[i].Compare(&to.Entries[i])
+		if !comp {
+			return false, fmt.Sprintf("entry %d differ in %s", i, res)
+		}
+	}
+	for i := 0; i < int(n.NumberOfChildren); i++ {
+		if n.Children[i] != to.Children[i] {
+			return false, fmt.Sprintf("child %d", i)
+		}
+	}
+	return true, ""
 }

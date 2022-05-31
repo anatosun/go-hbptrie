@@ -44,3 +44,19 @@ func (e *Entry) UnmarshalEntry(data []byte) error {
 	e.Value = binary.LittleEndian.Uint64(data[17:])
 	return nil
 }
+
+func (e *Entry) Compare(f *Entry) (bool, string) {
+
+	if e.IsTree != f.IsTree {
+		return false, "IsTree"
+	}
+	if e.Value != f.Value {
+		return false, "Value"
+	}
+	for i := 0; i < 16; i++ {
+		if e.Key[i] != f.Key[i] {
+			return false, "Key"
+		}
+	}
+	return true, ""
+}

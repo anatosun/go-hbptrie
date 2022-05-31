@@ -17,7 +17,7 @@ type Bufferpool struct {
 }
 
 func (pool *Bufferpool) metaHeaderSize() uint64 {
-	return 8 + metaSize()*limit
+	return 8 + 8 + metaSize()*limit
 }
 
 func (pool *Bufferpool) pagePosition(frameId, pageId uint64) uint64 {
@@ -52,6 +52,9 @@ func (pool *Bufferpool) write(frameId uint64, page *Node) error {
 }
 
 func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
+	if pool.file == nil {
+		return nil, &kverrors.UnspecifiedFileError{}
+	}
 	if frameId == 0 {
 		return nil, &kverrors.InvalidFrameIdError{}
 	}
@@ -106,6 +109,20 @@ func (pool *Bufferpool) Register() (uint64, error) {
 // Unregister deletes the frame with the given id. This operation is irreversible.
 func (pool *Bufferpool) Unregister(id uint64) {
 	delete(pool.frames, id)
+}
+
+func (pool *Bufferpool) GetFrames() []uint64 {
+	return pool.getFrameIds()
+}
+
+// GetNodes returns the map of nodes in the given frame.
+func (pool *Bufferpool) GetNodes(frameId uint64) (map[uint64]*Node, error) {
+	frame := pool.frames[frameId]
+	if frame == nil {
+		return nil, &kverrors.UnregisteredError{}
+	}
+
+	return frame.pages, nil
 }
 
 // Query returns the node with the given id from the given frame. If the node is not memory, it performs IO.
@@ -285,9 +302,7 @@ func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	rootId := meta.root
-	size := meta.size
-	root, err := pool.io(frameId, rootId)
+	root, err := pool.io(frameId, meta.root)
 	if err != nil {
 
 		return 0, 0, err
@@ -296,18 +311,21 @@ func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
 
 		return 0, 0, &kverrors.InvalidNodeError{}
 	}
+	if root.Page.Id == 0 {
+		return 0, 0, &kverrors.InvalidNodeError{}
+	}
 
 	frame := newFrame(pool.allocation)
-	frame.root = rootId
-	frame.size = size
+	frame.root = meta.root
+	frame.size = meta.size
 	frame.cursor = meta.cursor
 	pool.frames[frameId] = frame
 
-	return rootId, size, nil
+	return meta.root, meta.size, nil
 
 }
 
-func (pool *Bufferpool) WriteTrie() error {
+func (pool *Bufferpool) WriteTrie(size uint64) error {
 	frameIds := pool.getFrameIds()
 	nframes := len(frameIds)
 	if nframes == 0 {
@@ -323,8 +341,18 @@ func (pool *Bufferpool) WriteTrie() error {
 		return &kverrors.PartialWriteError{Total: len(data), Written: nbytes}
 	}
 
-	for _, k := range frameIds {
-		err := pool.WriteTree(k)
+	data = make([]byte, 8)
+	binary.LittleEndian.PutUint64(data, uint64(size))
+	nbytes, err = pool.file.WriteAt(data, 8)
+	if err != nil {
+		return err
+	}
+	if nbytes != len(data) {
+		return &kverrors.PartialWriteError{Total: len(data), Written: nbytes}
+	}
+
+	for _, frameId := range frameIds {
+		err := pool.WriteTree(frameId)
 		if err != nil {
 			return err
 		}
@@ -343,10 +371,18 @@ func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, err error) {
 		return 0, 0, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
 	}
 	nframes := binary.LittleEndian.Uint64(data)
-
+	data = make([]byte, 8)
+	nbytes, err = pool.file.ReadAt(data, 8)
+	if err != nil {
+		return 0, 0, err
+	}
+	if nbytes != len(data) {
+		return 0, 0, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
+	}
+	size = binary.LittleEndian.Uint64(data)
 	for id := uint64(1); id <= nframes; id++ {
 		if id == 1 {
-			root, size, err = pool.ReadTree(id)
+			root, _, err = pool.ReadTree(id)
 			if err != nil {
 				return 0, 0, err
 			}
