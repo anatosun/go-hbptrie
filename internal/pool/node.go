@@ -130,9 +130,9 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 		n.Entries[i] = e
 		cursor += EntryLen()
 	}
-	if n.NumberOfChildren > uint64(len(n.Children)) {
-		return &kverrors.OverflowError{Type: "Number of children", Actual: n.NumberOfChildren, Max: len(n.Children)}
-	}
+	// if n.NumberOfChildren > uint64(len(n.Children)) {
+	// 	return &kverrors.OverflowError{Type: "Number of children", Actual: n.NumberOfChildren, Max: len(n.Children)}
+	// }
 	for i := 0; i < int(n.NumberOfChildren); i++ {
 		n.Children[i] = bin.Uint64(data[cursor : cursor+8])
 		cursor += 8
