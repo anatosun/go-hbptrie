@@ -151,3 +151,12 @@ type BufferPoolLimitError struct {
 func (err *BufferPoolLimitError) Error() string {
 	return fmt.Sprintf("buffer pool limit reached: %v", err.Limit)
 }
+
+type InvalidNodeIOError struct {
+	Node   interface{}
+	Cursor interface{}
+}
+
+func (err *InvalidNodeIOError) Error() string {
+	return fmt.Sprintf("invalid node io: node %v, cursor %v", err.Node, err.Cursor)
+}
