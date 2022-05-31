@@ -15,7 +15,8 @@ type frame struct {
 	// dirties    map[uint64]*Node
 	cursor     uint64
 	allocation uint64
-	rootPageId uint64
+	root       uint64
+	size       uint64
 }
 
 func (l *frame) push(p *Page) {
@@ -94,7 +95,7 @@ func (l *frame) add(node *Node) error {
 		return &kverrors.FrameOverflowError{Max: l.allocation}
 	}
 	if node.Id > l.cursor {
-		return &kverrors.InvalidNodeError{}
+		return &kverrors.InvalidNodeIOError{Node: node.Id, Cursor: l.cursor}
 	}
 	l.pages[node.Id] = node
 	l.push(node.Page)
@@ -120,11 +121,24 @@ func (l *frame) evict() *Node {
 }
 
 // Sets page id of the root b+ tree
-func (l *frame) setRootPageId(pageId uint64) {
-	l.rootPageId = pageId
+func (l *frame) setRoot(pageId uint64) {
+	l.root = pageId
 }
 
 // Returns page id of the root b+ tree
-func (l *frame) getRootPageId() uint64 {
-	return l.rootPageId
+func (l *frame) getRoot() uint64 {
+	return l.root
+}
+
+// func (l *frame) setSize(size uint64) {
+// 	l.size = size
+// }
+
+// func (l *frame) getSize() uint64 {
+// 	return l.size
+// }
+
+func (l *frame) update(root, size uint64) {
+	l.root = root
+	l.size = size
 }
