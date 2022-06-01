@@ -14,12 +14,12 @@ type HBTrieInstance struct {
 	size      uint64
 }
 
-func NewHBPlusTrie(chunkSize int, pool *pool.Bufferpool) *HBTrieInstance {
+func NewHBPlusTrie(pool *pool.Bufferpool) *HBTrieInstance {
 	tree := bptree.NewBplusTree(pool)
 
 	return &HBTrieInstance{
 		pool:      pool,
-		chunkSize: chunkSize,
+		chunkSize: 16,
 		rootTree:  tree,
 	}
 }
@@ -57,7 +57,7 @@ func (hbt *HBTrieInstance) search(bpt *bptree.BPlusTree, key []byte) (uint64, []
 }
 
 func (hbt *HBTrieInstance) Insert(key []byte, value uint64) (err error) {
-	var errKeyNotFound *kverrors.KeyNotFoundError
+	errKeyNotFound := &kverrors.KeyNotFoundError{Key: key}
 
 	_, trimmedKey, bpt, err := hbt.search(hbt.rootTree, key)
 	if err != nil {
@@ -136,24 +136,34 @@ func createChunkFromKey(key []byte) (*[16]byte, *[]byte) {
 }
 
 func (hbt *HBTrieInstance) Write() error {
-	return hbt.pool.WriteTrie(hbt.rootTree.GetFrameId())
+	frames := hbt.pool.GetFrames()
+	for _, frame := range frames {
+		bpt := bptree.LoadBplusTree(hbt.pool, frame)
+		err := bpt.Write()
+		if err != nil {
+			return err
+		}
+
+	}
+	return hbt.pool.WriteTrie(hbt.size)
 }
 
 func Read(pool *pool.Bufferpool) (*HBTrieInstance, error) {
 	trie := &HBTrieInstance{}
 	trie.pool = pool
-	rootId, size, err := pool.ReadTrie()
+	rootId, size, nframes, err := pool.ReadTrie()
 	if err != nil {
 		return trie, err
 	}
 
 	trie.size = size
-
-	root, err := bptree.ReadBpTreeFromDisk(pool, rootId)
-	if err != nil {
-		return trie, err
-	}
+	trie.chunkSize = 16
+	root := bptree.LoadBplusTree(pool, rootId)
 	trie.rootTree = root
 
+	for i := uint64(1); i < nframes; i++ {
+		bptree.LoadBplusTree(pool, i)
+
+	}
 	return trie, nil
 }
