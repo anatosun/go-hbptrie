@@ -8,7 +8,7 @@ import (
 )
 
 // number of maximum frames per pool
-const poolMaxNumberOfTrees = 10000
+const poolMaxNumberOfTrees = 100000
 
 type Bufferpool struct {
 	frames     map[uint64]*frame
