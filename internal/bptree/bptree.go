@@ -452,3 +452,26 @@ func (bpt *BPlusTree) Compare(to *BPlusTree) (bool, string) {
 
 	return true, ""
 }
+
+func (bpt *BPlusTree) KeysValues() (keys [][]byte, values []uint64) {
+	values = make([]uint64, bpt.size)
+	keys = make([][]byte, bpt.size)
+	id, _, _, _ := bpt.search(bpt.root.Id, [16]byte{0})
+	current, err := bpt.where(id)
+	if err != nil {
+		return keys, values
+	}
+	for current != nil {
+
+		for _, e := range current.Entries {
+			values = append(values, e.Value)
+			keys = append(keys, e.Key[:])
+		}
+		current, err = bpt.where(current.Next)
+		if err != nil {
+			return keys, values
+		}
+	}
+
+	return keys, values
+}

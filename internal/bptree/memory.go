@@ -17,6 +17,10 @@ func (bpt *BPlusTree) allocate() (uint64, error) {
 	return node.Id, err
 }
 
+func MaxNumberOfPages() uint64 {
+	return 100
+}
+
 // Write writes the tree to disk according to the BufferPool logic.
 func (bpt *BPlusTree) Write() error {
 	return bpt.pool.WriteTree(bpt.frameId)
