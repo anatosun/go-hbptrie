@@ -375,42 +375,42 @@ func (pool *Bufferpool) WriteTrie(size uint64) error {
 	return nil
 }
 
-func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, err error) {
+func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, nframes uint64, err error) {
 	data := make([]byte, 8)
 	nbytes, err := pool.file.ReadAt(data, 0)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	if nbytes != len(data) {
-		return 0, 0, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
+		return 0, 0, 0, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
 	}
-	nframes := binary.LittleEndian.Uint64(data)
+	nframes = binary.LittleEndian.Uint64(data)
 	data = make([]byte, 8)
 	nbytes, err = pool.file.ReadAt(data, 8)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, nframes, err
 	}
 	if nbytes != len(data) {
-		return 0, 0, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
+		return 0, 0, nframes, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
 	}
 	size = binary.LittleEndian.Uint64(data)
 	for id := uint64(1); id < nframes+1; id++ {
 		if id == 1 {
 			root, _, err = pool.ReadTree(id)
 			if err != nil {
-				return 0, 0, err
+				return 0, 0, nframes, err
 			}
 			if root == 0 {
-				return 0, 0, &kverrors.InvalidNodeError{}
+				return 0, 0, nframes, &kverrors.InvalidNodeError{}
 			}
 			continue
 		}
 		r, _, err := pool.ReadTree(id)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 		if r == 0 {
-			return root, size, &kverrors.InvalidNodeError{}
+			return root, size, nframes, &kverrors.InvalidNodeError{}
 		}
 		// fmt.Printf("%d %d ", r, s)
 
@@ -418,5 +418,5 @@ func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, err error) {
 
 	// fmt.Printf("\n")
 
-	return root, size, nil
+	return root, size, nframes, nil
 }
