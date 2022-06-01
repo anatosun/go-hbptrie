@@ -75,7 +75,7 @@ func NewStore(options *StoreOptions) (Store, error) {
 		storePath: options.storePath,
 		chunkSize: options.chunkSize,
 		pool:      pool,
-		hbtrie:    hbtrie.NewHBPlusTrie(options.chunkSize, pool),
+		hbtrie:    hbtrie.NewHBPlusTrie(pool),
 	}, nil
 }
 
