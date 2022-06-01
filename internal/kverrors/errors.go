@@ -167,3 +167,13 @@ type UnspecifiedFileError struct{}
 func (err *UnspecifiedFileError) Error() string {
 	return "unspecified file: please specify a file"
 }
+
+type OutsideOfRangeError struct {
+	From   interface{}
+	To     interface{}
+	Actual interface{}
+}
+
+func (err *OutsideOfRangeError) Error() string {
+	return fmt.Sprintf("value %v is outside of range %v-%v", err.Actual, err.From, err.To)
+}
