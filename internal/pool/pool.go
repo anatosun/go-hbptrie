@@ -8,7 +8,7 @@ import (
 )
 
 // number of maximum frames per pool
-const limit = 100000
+const poolMaxNumberOfTrees = 10000
 
 type Bufferpool struct {
 	frames     map[uint64]*frame
@@ -16,22 +16,28 @@ type Bufferpool struct {
 	file       *os.File
 }
 
-func (pool *Bufferpool) metaHeaderSize() uint64 {
-	return 8 + 8 + metaSize()*limit
-}
-
 func (pool *Bufferpool) pagePosition(frameId, pageId uint64) uint64 {
-	return pool.metaHeaderSize() + pageId*uint64(PageSize)
+	return pool.metaMaxHeaderSize() + frameId*pool.treeMaxSize() + pageId*PageSize
+}
+func (pool *Bufferpool) treeMaxSize() uint64 {
+	return PageSize * frameMaxNumberOfPages
 }
 func (pool *Bufferpool) metaPosition(frameId uint64) uint64 {
-	return frameId * metaSize()
+	return 8 + 8 + frameId*metaSize()
+}
+func (pool *Bufferpool) metaMaxHeaderSize() uint64 {
+	return pool.metaPosition(poolMaxNumberOfTrees)
 }
 
 // NewBufferpool returns a new bufferpool with the given underlying file and allocation size.
 // The read/write to disk will be performed from/to the given file.
 // The allocation size is the number of pages that will be allocated for each frame before IO operations.
 func NewBufferpool(file *os.File, allocation uint64) *Bufferpool {
-	return &Bufferpool{file: file, frames: make(map[uint64]*frame), allocation: allocation}
+
+	pool := &Bufferpool{file: file, frames: make(map[uint64]*frame), allocation: allocation}
+	// size := int64(pool.pagePosition(poolMaxNumberOfTrees, frameMaxNumberOfPages))
+	// file.Truncate(size)
+	return pool
 }
 
 func (pool *Bufferpool) write(frameId uint64, page *Node) error {
@@ -59,6 +65,11 @@ func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
 		return nil, &kverrors.InvalidFrameIdError{}
 	}
 	position := pool.pagePosition(frameId, pageId)
+	from := pool.pagePosition(frameId, frameMaxNumberOfPages)
+	to := pool.pagePosition(frameId+1, 1) - 1
+	if position > to {
+		return nil, &kverrors.OutsideOfRangeError{From: from, To: to, Actual: position}
+	}
 	data := make([]byte, PageSize)
 	nbytes, err := pool.file.ReadAt(data, int64(position))
 	if err != nil {
@@ -98,7 +109,7 @@ func (pool *Bufferpool) Register() (uint64, error) {
 	r := uint64(1)
 	for pool.frames[r] != nil {
 		r++
-		if r == limit {
+		if r == poolMaxNumberOfTrees {
 			return 0, &kverrors.BufferPoolLimitError{}
 		}
 	}
@@ -279,13 +290,16 @@ func (pool *Bufferpool) WriteTree(frameId uint64) error {
 	if err != nil {
 		return err
 	}
-
+	max := uint64(0)
 	for _, node := range frame.pages {
 		if node.Dirty {
 			err := pool.write(frameId, node)
 			if err != nil {
 				return err
 			}
+		}
+		if node.Id > max {
+			max = node.Id
 		}
 	}
 
@@ -294,7 +308,7 @@ func (pool *Bufferpool) WriteTree(frameId uint64) error {
 }
 
 func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
-	if frameId > limit {
+	if frameId > poolMaxNumberOfTrees {
 		return 0, 0, &kverrors.InvalidFrameIdError{}
 	}
 
@@ -380,7 +394,7 @@ func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, err error) {
 		return 0, 0, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
 	}
 	size = binary.LittleEndian.Uint64(data)
-	for id := uint64(1); id <= nframes; id++ {
+	for id := uint64(1); id < nframes+1; id++ {
 		if id == 1 {
 			root, _, err = pool.ReadTree(id)
 			if err != nil {
@@ -398,8 +412,11 @@ func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, err error) {
 		if r == 0 {
 			return root, size, &kverrors.InvalidNodeError{}
 		}
+		// fmt.Printf("%d %d ", r, s)
 
 	}
+
+	// fmt.Printf("\n")
 
 	return root, size, nil
 }

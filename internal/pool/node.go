@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"hbtrie/internal/kverrors"
@@ -53,13 +54,13 @@ func (n *Node) InsertChildAt(at int, child *Node) error {
 func (n *Node) MarshalBinary() ([]byte, error) {
 	capacity := int(PageSize) // 4KB
 	buf := make([]byte, capacity)
+	if _, err := rand.Read(buf); err != nil {
+		return buf, err
+	}
 	bin := binary.LittleEndian
 	bin.PutUint64(buf[0:8], n.Id)
 	bin.PutUint64(buf[8:16], n.NumberOfEntries)
 	bin.PutUint64(buf[16:24], n.NumberOfChildren)
-	// if n.NumberOfEntries > 0 && n.NumberOfChildren > 0 {
-	// 	return buf, &kverrors.InvalidNodeSizeError{NumberOfChildren: n.NumberOfChildren, NumberOfEntries: n.NumberOfEntries}
-	// }
 	bin.PutUint64(buf[24:32], n.Next)
 	bin.PutUint64(buf[32:40], n.Prev)
 
@@ -101,7 +102,7 @@ func (n *Node) MarshalBinary() ([]byte, error) {
 
 func (n *Node) UnmarshalBinary(data []byte) error {
 	capacity := int(PageSize) // 4KB
-	if len(data) > capacity {
+	if len(data) != capacity {
 		return &kverrors.InvalidSizeError{Got: len(data), Should: capacity}
 	}
 	n.Dirty = false
@@ -109,9 +110,6 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	n.Id = bin.Uint64(data[0:8])
 	n.NumberOfEntries = bin.Uint64(data[8:16])
 	n.NumberOfChildren = bin.Uint64(data[16:24])
-	// if n.NumberOfEntries > 0 && n.NumberOfChildren > 0 {
-	// 	return &kverrors.InvalidNodeSizeError{NumberOfChildren: n.NumberOfChildren, NumberOfEntries: n.NumberOfEntries}
-	// }
 	n.Next = bin.Uint64(data[24:32])
 	n.Prev = bin.Uint64(data[32:40])
 
@@ -131,9 +129,9 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 		n.Entries[i] = e
 		cursor += EntryLen()
 	}
-	// if n.NumberOfChildren > uint64(len(n.Children)) {
-	// 	return &kverrors.OverflowError{Type: "Number of children", Actual: n.NumberOfChildren, Max: len(n.Children)}
-	// }
+	if n.NumberOfChildren > uint64(len(n.Children)) {
+		return &kverrors.OverflowError{Type: "Number of children", Actual: n.NumberOfChildren, Max: len(n.Children)}
+	}
 	for i := 0; i < int(n.NumberOfChildren); i++ {
 		n.Children[i] = bin.Uint64(data[cursor : cursor+8])
 		cursor += 8

@@ -4,6 +4,8 @@ import (
 	"hbtrie/internal/kverrors"
 )
 
+const frameMaxNumberOfPages = 1000
+
 // Frame is a self-managed unit of the buffer pool. It consists in a double linked list of pages.
 // Each page, when queried, is pushed to the head of the list. Pages on the tail of the list are the least recently used.
 // Pages on the tail should thus be evicted first.
@@ -78,8 +80,12 @@ func (l *frame) newNode() (node *Node, full bool) {
 		return nil, true
 	}
 	l.cursor++
+	if l.cursor > frameMaxNumberOfPages {
+		panic("frame over page limit")
+	}
 	page := NewPage(l.cursor)
 	node = &Node{Page: page}
+	node.Dirty = true
 	l.pages[node.Id] = node
 	l.push(node.Page)
 	return node, false
@@ -96,6 +102,9 @@ func (l *frame) add(node *Node) error {
 	}
 	if node.Id > l.cursor {
 		return &kverrors.InvalidNodeIOError{Node: node.Id, Cursor: l.cursor}
+	}
+	if node.Id > frameMaxNumberOfPages {
+		return &kverrors.InvalidNodeIOError{Node: node.Id, Cursor: frameMaxNumberOfPages}
 	}
 	l.pages[node.Id] = node
 	l.push(node.Page)
