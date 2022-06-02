@@ -1,52 +1,79 @@
 package pool
 
 import (
-	"encoding/binary"
+	"errors"
+	"fmt"
 	"hbtrie/internal/kverrors"
 	"os"
+	"path/filepath"
 	"sort"
 )
 
 // number of maximum frames per pool
 const poolMaxNumberOfTrees = 100000
+const dataPath = "./data/"
+const hbFilename = "hb_meta"
 
 type Bufferpool struct {
 	frames     map[uint64]*frame
 	allocation uint64
+	dataPath   string
 	file       *os.File
 }
 
-func (pool *Bufferpool) pagePosition(frameId, pageId uint64) uint64 {
-	return pool.metaMaxHeaderSize() + frameId*pool.treeMaxSize() + pageId*PageSize
-}
-func (pool *Bufferpool) treeMaxSize() uint64 {
-	return PageSize * frameMaxNumberOfPages
-}
-func (pool *Bufferpool) metaPosition(frameId uint64) uint64 {
-	return 8 + 8 + frameId*metaSize()
-}
-func (pool *Bufferpool) metaMaxHeaderSize() uint64 {
-	return pool.metaPosition(poolMaxNumberOfTrees)
-}
+// func (pool *Bufferpool) pagePosition(frameId, pageId uint64) uint64 {
+// 	return pool.metaMaxHeaderSize() + frameId*pool.treeMaxSize() + pageId*PageSize
+// }
+// func (pool *Bufferpool) treeMaxSize() uint64 {
+// 	return PageSize * frameMaxNumberOfPages
+// }
+// func (pool *Bufferpool) metaPosition(frameId uint64) uint64 {
+// 	return 8 + 8 + frameId*metaSize()
+// }
+// func (pool *Bufferpool) metaMaxHeaderSize() uint64 {
+// 	return pool.metaPosition(poolMaxNumberOfTrees)
+// }
 
 // NewBufferpool returns a new bufferpool with the given underlying file and allocation size.
 // The read/write to disk will be performed from/to the given file.
 // The allocation size is the number of pages that will be allocated for each frame before IO operations.
-func NewBufferpool(file *os.File, allocation uint64) *Bufferpool {
+func NewBufferpool(allocation uint64) (*Bufferpool, error) {
+	dp := filepath.Join(dataPath)
+	err := os.MkdirAll(dp, 0755)
+	if err != nil {
+		return nil, err
+	}
+	hbf := filepath.Join(dp, hbFilename)
+	var file *os.File
+	_, err = os.Stat(hbf)
+	if errors.Is(err, os.ErrNotExist) {
+		file, err = os.Create(hbf)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		file, err = os.OpenFile(hbf, os.O_RDWR, 0755)
+		if err != nil {
+			return nil, err
+		}
+	}
+	pool := &Bufferpool{frames: make(map[uint64]*frame), allocation: allocation, dataPath: dp, file: file}
 
-	pool := &Bufferpool{file: file, frames: make(map[uint64]*frame), allocation: allocation}
-	// size := int64(pool.pagePosition(poolMaxNumberOfTrees, frameMaxNumberOfPages))
-	// file.Truncate(size)
-	return pool
+	return pool, err
 }
 
 func (pool *Bufferpool) write(frameId uint64, page *Node) error {
-	position := pool.pagePosition(frameId, page.Id)
+	frame := pool.frames[frameId]
+	if frame == nil {
+		return &kverrors.UnregisteredError{}
+	}
+	file := frame.file
+	position := pagePosition(page.Id)
 	data, err := page.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	nbytes, err := pool.file.WriteAt(data, int64(position))
+	nbytes, err := file.WriteAt(data, int64(position))
 	if err != nil {
 		return err
 	}
@@ -58,20 +85,21 @@ func (pool *Bufferpool) write(frameId uint64, page *Node) error {
 }
 
 func (pool *Bufferpool) io(frameId, pageId uint64) (*Node, error) {
-	if pool.file == nil {
-		return nil, &kverrors.UnspecifiedFileError{}
+	filename := pool.filename(frameId)
+	_, err := os.Stat(filename)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(filename, os.O_RDWR, 0755)
+	if err != nil {
+		return nil, err
 	}
 	if frameId == 0 {
 		return nil, &kverrors.InvalidFrameIdError{}
 	}
-	position := pool.pagePosition(frameId, pageId)
-	from := pool.pagePosition(frameId, frameMaxNumberOfPages)
-	to := pool.pagePosition(frameId+1, 1) - 1
-	if position > to {
-		return nil, &kverrors.OutsideOfRangeError{From: from, To: to, Actual: position}
-	}
+	position := pagePosition(pageId)
 	data := make([]byte, PageSize)
-	nbytes, err := pool.file.ReadAt(data, int64(position))
+	nbytes, err := file.ReadAt(data, int64(position))
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +130,12 @@ func (pool *Bufferpool) getFrameIds() []uint64 {
 	return keys
 }
 
+func (pool *Bufferpool) filename(frameId uint64) string {
+	filename := fmt.Sprintf("frame_%d", frameId)
+	filename = filepath.Join(pool.dataPath, filename)
+	return filename
+}
+
 // Register is used for a client to get a frame allocated in the bufferpool.
 // It returns the id of the frame which should be use for subsequent queries.
 func (pool *Bufferpool) Register() (uint64, error) {
@@ -113,7 +147,13 @@ func (pool *Bufferpool) Register() (uint64, error) {
 			return 0, &kverrors.BufferPoolLimitError{}
 		}
 	}
-	pool.frames[r] = newFrame(pool.allocation)
+
+	filename := pool.filename(r)
+	file, err := os.Create(filename)
+	if err != nil {
+		return 0, err
+	}
+	pool.frames[r] = newFrame(file, pool.allocation)
 	return r, nil
 }
 
@@ -238,12 +278,20 @@ func (pool *Bufferpool) Update(frameId, root, size uint64) error {
 
 }
 
-func (pool *Bufferpool) readMetadata(frameID uint64) (metadata, error) {
-	meta := metadata{0, 0, 0}
-
-	position := pool.metaPosition(frameID)
-	data := make([]byte, metaSize())
-	nbytes, err := pool.file.ReadAt(data, int64(position))
+func (pool *Bufferpool) readMetadata(frameID uint64) (frameMetadata, error) {
+	meta := frameMetadata{0, 0, 0}
+	filename := pool.filename(frameID)
+	_, err := os.Stat(filename)
+	if err != nil {
+		return meta, err
+	}
+	file, err := os.OpenFile(filename, os.O_RDWR, 0755)
+	if err != nil {
+		return meta, err
+	}
+	position := uint64(0)
+	data := make([]byte, frameMetaSize())
+	nbytes, err := file.ReadAt(data, int64(position))
 	if err != nil {
 		return meta, err
 	}
@@ -261,13 +309,18 @@ func (pool *Bufferpool) readMetadata(frameID uint64) (metadata, error) {
 
 }
 
-func (pool *Bufferpool) writeMetadata(frameID uint64, meta metadata) error {
-	position := pool.metaPosition(frameID)
+func (pool *Bufferpool) writeMetadata(frameId uint64, meta frameMetadata) error {
+	frame := pool.frames[frameId]
+	if frame == nil {
+		return &kverrors.UnregisteredError{}
+	}
+	file := frame.file
+	position := int64(0)
 	data, err := meta.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	nbytes, err := pool.file.WriteAt(data, int64(position))
+	nbytes, err := file.WriteAt(data, position)
 	if err != nil {
 		return err
 	}
@@ -286,7 +339,7 @@ func (pool *Bufferpool) WriteTree(frameId uint64) error {
 		return &kverrors.UnregisteredError{}
 	}
 
-	err := pool.writeMetadata(frameId, metadata{root: frame.root, size: frame.size, cursor: frame.cursor})
+	err := pool.writeMetadata(frameId, frameMetadata{root: frame.root, size: frame.size, cursor: frame.cursor})
 	if err != nil {
 		return err
 	}
@@ -328,8 +381,16 @@ func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
 	if root.Page.Id == 0 {
 		return 0, 0, &kverrors.InvalidNodeError{}
 	}
-
-	frame := newFrame(pool.allocation)
+	filename := pool.filename(frameId)
+	_, err = os.Stat(filename)
+	if err != nil {
+		return 0, 0, err
+	}
+	file, err := os.OpenFile(filename, os.O_RDWR, 0755)
+	if err != nil {
+		return 0, 0, err
+	}
+	frame := newFrame(file, pool.allocation)
 	frame.root = meta.root
 	frame.size = meta.size
 	frame.cursor = meta.cursor
@@ -339,25 +400,33 @@ func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
 
 }
 
-func (pool *Bufferpool) WriteTrie(size uint64) error {
-	frameIds := pool.getFrameIds()
-	nframes := len(frameIds)
-	if nframes == 0 {
-		return nil
+func (pool *Bufferpool) Close() error {
+	for _, frame := range pool.frames {
+		if frame != nil {
+			err := frame.file.Close()
+			if err != nil {
+				return err
+			}
+		}
 	}
-	data := make([]byte, 8)
-	binary.LittleEndian.PutUint64(data, uint64(nframes))
-	nbytes, err := pool.file.WriteAt(data, 0)
+	return pool.file.Close()
+}
+
+func (pool *Bufferpool) Clean() error {
+	return os.RemoveAll(pool.dataPath)
+}
+
+func (pool *Bufferpool) WriteTrie(root, size uint64) error {
+	frameIds := pool.getFrameIds()
+	nframes := uint64(len(frameIds))
+	meta := &hbMetatadata{root: root, size: size, nframes: nframes}
+	file := pool.file
+	position := int64(0)
+	data, err := meta.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	if nbytes != len(data) {
-		return &kverrors.PartialWriteError{Total: len(data), Written: nbytes}
-	}
-
-	data = make([]byte, 8)
-	binary.LittleEndian.PutUint64(data, uint64(size))
-	nbytes, err = pool.file.WriteAt(data, 8)
+	nbytes, err := file.WriteAt(data, position)
 	if err != nil {
 		return err
 	}
@@ -376,24 +445,30 @@ func (pool *Bufferpool) WriteTrie(size uint64) error {
 }
 
 func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, nframes uint64, err error) {
-	data := make([]byte, 8)
-	nbytes, err := pool.file.ReadAt(data, 0)
+	meta := hbMetatadata{}
+	file := pool.file
+	position := int64(0)
+	data := make([]byte, hbMetaSize())
+	nbytes, err := file.ReadAt(data, position)
 	if err != nil {
+		fmt.Println(err)
+
 		return 0, 0, 0, err
 	}
 	if nbytes != len(data) {
 		return 0, 0, 0, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
 	}
-	nframes = binary.LittleEndian.Uint64(data)
-	data = make([]byte, 8)
-	nbytes, err = pool.file.ReadAt(data, 8)
+	err = meta.UnmarshalBinary(data)
 	if err != nil {
-		return 0, 0, nframes, err
+		return 0, 0, 0, err
 	}
-	if nbytes != len(data) {
-		return 0, 0, nframes, &kverrors.PartialReadError{Total: len(data), Read: nbytes}
+
+	if meta.root == 0 {
+		return 0, 0, 0, &kverrors.InvalidMetadataError{Root: meta.root, Size: meta.size}
 	}
-	size = binary.LittleEndian.Uint64(data)
+
+	root, size, nframes = meta.root, meta.size, meta.nframes
+
 	for id := uint64(1); id < nframes+1; id++ {
 		if id == 1 {
 			root, _, err = pool.ReadTree(id)
@@ -412,11 +487,8 @@ func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, nframes uint64, er
 		if r == 0 {
 			return root, size, nframes, &kverrors.InvalidNodeError{}
 		}
-		// fmt.Printf("%d %d ", r, s)
 
 	}
-
-	// fmt.Printf("\n")
 
 	return root, size, nframes, nil
 }

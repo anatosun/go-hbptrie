@@ -5,7 +5,6 @@ import (
 	"crypto/sha512"
 	"hbtrie/internal/pool"
 	"math/rand"
-	"os"
 	"testing"
 )
 
@@ -15,7 +14,18 @@ var values map[[64]byte]uint64
 const size = 1000
 
 func TestInit(t *testing.T) {
-	store = NewHBPlusTrie(pool.NewBufferpool(nil, uint64(size)))
+	p, err := pool.NewBufferpool(10)
+	if err != nil {
+		t.Errorf("while creating bufferpool: %v", err)
+		t.FailNow()
+	}
+	t.Cleanup(func() {
+		p.Close()
+		p.Clean()
+
+	})
+	store = NewHBPlusTrie(p)
+
 	values = make(map[[64]byte]uint64)
 	h := sha512.New()
 
@@ -35,7 +45,18 @@ func TestInit(t *testing.T) {
 }
 
 func TestInsertBelowChunkSize(t *testing.T) {
-	store = NewHBPlusTrie(pool.NewBufferpool(nil, uint64(size)))
+	p, err := pool.NewBufferpool(10)
+	if err != nil {
+		t.Errorf("while creating bufferpool: %v", err)
+		t.FailNow()
+	}
+	t.Cleanup(func() {
+		p.Close()
+		p.Clean()
+
+	})
+	store = NewHBPlusTrie(p)
+
 	step := 0
 
 	for key, value := range values {
@@ -60,7 +81,18 @@ func TestInsertBelowChunkSize(t *testing.T) {
 }
 
 func TestInsertAboveChunkSize(t *testing.T) {
-	store = NewHBPlusTrie(pool.NewBufferpool(nil, uint64(size)))
+	p, err := pool.NewBufferpool(10)
+	if err != nil {
+		t.Errorf("while creating bufferpool: %v", err)
+		t.FailNow()
+	}
+	t.Cleanup(func() {
+		p.Close()
+		p.Clean()
+
+	})
+	store = NewHBPlusTrie(p)
+
 	step := 0
 
 	for key, value := range values {
@@ -85,7 +117,18 @@ func TestInsertAboveChunkSize(t *testing.T) {
 }
 
 func TestInsertSimilarAboveChunkSize(t *testing.T) {
-	store = NewHBPlusTrie(pool.NewBufferpool(nil, uint64(size)))
+	p, err := pool.NewBufferpool(10)
+	if err != nil {
+		t.Errorf("while creating bufferpool: %v", err)
+		t.FailNow()
+	}
+	t.Cleanup(func() {
+		p.Close()
+		p.Clean()
+
+	})
+	store = NewHBPlusTrie(p)
+
 	step := 0
 	h := sha1.New()
 	// Create 10 random prefixes
@@ -124,7 +167,18 @@ func TestInsertSimilarAboveChunkSize(t *testing.T) {
 }
 
 func TestUpdateKeys(t *testing.T) {
-	store = NewHBPlusTrie(pool.NewBufferpool(nil, uint64(size)))
+	p, err := pool.NewBufferpool(5)
+	if err != nil {
+		t.Errorf("while creating bufferpool: %v", err)
+		t.FailNow()
+	}
+	t.Cleanup(func() {
+		p.Close()
+		p.Clean()
+
+	})
+	store = NewHBPlusTrie(p)
+
 	step := 0
 	h := sha1.New()
 
@@ -166,17 +220,18 @@ func TestUpdateKeys(t *testing.T) {
 }
 
 func TestInsertWithPageEviction(t *testing.T) {
-	filename := "test_insert_with_page_eviction.bin"
-	file, err := os.Create(filename)
+
+	p, err := pool.NewBufferpool(5)
 	if err != nil {
-		t.Errorf("while creating file '%v': %v", filename, err)
+		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
 	}
 	t.Cleanup(func() {
-		file.Close()
-		os.Remove(filename)
+		p.Close()
+		p.Clean()
+
 	})
-	store = NewHBPlusTrie(pool.NewBufferpool(file, uint64(5)))
+	store = NewHBPlusTrie(p)
 
 	step := 0
 	for key, value := range values {
@@ -204,17 +259,18 @@ func TestInsertWithPageEviction(t *testing.T) {
 }
 
 func TestWriteAndRetrieveFromDisk(t *testing.T) {
-	filename := "test_write_and_retrieve_from_disk.bin"
-	file, err := os.Create(filename)
+
+	p1, err := pool.NewBufferpool(5)
 	if err != nil {
-		t.Errorf("while creating file '%v': %v", filename, err)
+		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
 	}
 	t.Cleanup(func() {
-		file.Close()
-		os.Remove(filename)
+		p1.Close()
+		p1.Clean()
+
 	})
-	store := NewHBPlusTrie(pool.NewBufferpool(file, uint64(5)))
+	store = NewHBPlusTrie(p1)
 	step := 0
 	for key, value := range values {
 
@@ -237,26 +293,26 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 
 		step++
 	}
-
-	err = store.Write()
+	store.Write()
+	err = p1.Close()
 	if err != nil {
-		t.Errorf("while writing to disk: %v", err)
+		t.Errorf("while closing bufferpool: %v", err)
 		t.FailNow()
 	}
-	err = file.Close()
+	p2, err := pool.NewBufferpool(5)
 	if err != nil {
-		t.Errorf("could not close file: %v", err)
+		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
 	}
 
-	// store 2 initialisation
+	t.Cleanup(func() {
+		p1.Close()
+		p1.Clean()
+		p2.Close()
+		p2.Clean()
 
-	file, err = os.Open(filename)
-	if err != nil {
-		t.Errorf("while opening file '%v': %v", filename, err)
-		t.FailNow()
-	}
-	store2, err := Read(pool.NewBufferpool(file, uint64(5)))
+	})
+	store2, err := Read(p2)
 	if err != nil {
 		t.Errorf("while reading from file: %v", err)
 		t.FailNow()

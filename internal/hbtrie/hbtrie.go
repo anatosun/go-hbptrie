@@ -136,16 +136,8 @@ func createChunkFromKey(key []byte) (*[16]byte, *[]byte) {
 }
 
 func (hbt *HBTrieInstance) Write() error {
-	frames := hbt.pool.GetFrames()
-	for _, frame := range frames {
-		bpt := bptree.LoadBplusTree(hbt.pool, frame)
-		err := bpt.Write()
-		if err != nil {
-			return err
-		}
 
-	}
-	return hbt.pool.WriteTrie(hbt.size)
+	return hbt.pool.WriteTrie(hbt.rootTree.GetFrameId(), hbt.size)
 }
 
 func Read(pool *pool.Bufferpool) (*HBTrieInstance, error) {

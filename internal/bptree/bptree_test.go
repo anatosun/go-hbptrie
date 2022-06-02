@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"hbtrie/internal/pool"
 	"math/rand"
-	"os"
 	"testing"
 )
 
@@ -14,7 +13,13 @@ var values map[[16]byte]uint64
 const size = 8000
 
 func TestInit(t *testing.T) {
-	store = NewBplusTree(pool.NewBufferpool(nil, uint64(size)))
+	p, err := pool.NewBufferpool(10)
+	if err != nil {
+		t.Errorf("could not create bufferpool: %v", err)
+		t.FailNow()
+	}
+
+	store = NewBplusTree(p)
 	values = make(map[[16]byte]uint64)
 	h := sha1.New()
 
@@ -34,6 +39,7 @@ func TestInit(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
+
 	step := 0
 	for key, value := range values {
 
@@ -72,7 +78,11 @@ func TestInsert(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	t.Cleanup(func() {
+		store.pool.Close()
+		store.pool.Clean()
 
+	})
 	step := 0
 	for key, value := range values {
 
@@ -105,16 +115,18 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestPageEviction(t *testing.T) {
-	filename := "temp_test_data_eviction"
-	t.Cleanup(func() {
-		os.Remove(filename)
-	})
-	file, err := os.Create(filename)
+
+	p, err := pool.NewBufferpool(10)
 	if err != nil {
-		t.Errorf("could not create temp file: %v", err)
+		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
 	}
-	store = NewBplusTree(pool.NewBufferpool(file, uint64(10)))
+	t.Cleanup(func() {
+		p.Close()
+		p.Clean()
+
+	})
+	store = NewBplusTree(p)
 	step := 0
 	for key, value := range values {
 
@@ -142,25 +154,21 @@ func TestPageEviction(t *testing.T) {
 		step++
 	}
 
-	err = file.Close()
-	if err != nil {
-		t.Errorf("could not close temp file: %v", err)
-		t.FailNow()
-	}
-
 }
 
 func TestWriteOnDisk(t *testing.T) {
-	filename := "temp_test_data_write"
-	t.Cleanup(func() {
-		os.Remove(filename)
-	})
-	file, err := os.Create(filename)
+
+	p, err := pool.NewBufferpool(10)
 	if err != nil {
-		t.Errorf("could not create temp file: %v", err)
+		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
 	}
-	store = NewBplusTree(pool.NewBufferpool(file, uint64(10)))
+	t.Cleanup(func() {
+		p.Close()
+		p.Clean()
+
+	})
+	store = NewBplusTree(p)
 	step := 0
 	for key, value := range values {
 
@@ -193,25 +201,21 @@ func TestWriteOnDisk(t *testing.T) {
 		t.FailNow()
 	}
 
-	file.Close()
-	if err != nil {
-		t.Errorf("could not close temp file: %v", err)
-		t.FailNow()
-	}
-
 }
 
 func TestWriteAndRetrieveFromDisk(t *testing.T) {
-	filename := "temp_test_data_write_retrieve"
-	t.Cleanup(func() {
-		os.Remove(filename)
-	})
-	file, err := os.Create(filename)
+
+	p, err := pool.NewBufferpool(5)
 	if err != nil {
-		t.Errorf("could not create temp file: %v", err)
+		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
 	}
-	store = NewBplusTree(pool.NewBufferpool(file, uint64(5)))
+	t.Cleanup(func() {
+		p.Close()
+		p.Clean()
+
+	})
+	store = NewBplusTree(p)
 	step := 0
 	for key, value := range values {
 
@@ -245,18 +249,12 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 		t.FailNow()
 	}
 
-	file.Close()
+	p, err = pool.NewBufferpool(5)
 	if err != nil {
-		t.Errorf("could not close temp file: %v", err)
+		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
 	}
-
-	file, err = os.Open(filename)
-	if err != nil {
-		t.Errorf("could not open temp file: %v", err)
-		t.FailNow()
-	}
-	store2, err := ReadBpTreeFromDisk(pool.NewBufferpool(file, uint64(5)), frame)
+	store2, err := ReadBpTreeFromDisk(p, frame)
 	if err != nil {
 		t.Errorf("could not read from disk: %v", err)
 		t.FailNow()
@@ -277,26 +275,21 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 		step++
 	}
 
-	err = file.Close()
-	if err != nil {
-		t.Errorf("could not close temp file: %v", err)
-		t.FailNow()
-	}
-
 }
 
 func TestWriteAndRetrieveFromDiskMultiple(t *testing.T) {
-	filename := "temp_test_data_write_retrieve_multiple"
-	t.Cleanup(func() {
-		os.Remove(filename)
-	})
-	file, err := os.Create(filename)
+
+	pl1, err := pool.NewBufferpool(uint64(5))
 	if err != nil {
-		t.Errorf("could not create temp file: %v", err)
+		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
 	}
-	pl1 := pool.NewBufferpool(file, uint64(5))
 	stores := make([]*BPlusTree, size)
+	t.Cleanup(func() {
+		pl1.Close()
+		pl1.Clean()
+
+	})
 	for i := 0; i < size; i++ {
 		stores[i] = NewBplusTree(pl1)
 	}
@@ -353,18 +346,12 @@ func TestWriteAndRetrieveFromDiskMultiple(t *testing.T) {
 		}
 	}
 
-	file.Close()
+	pl2, err := pool.NewBufferpool(uint64(5))
 	if err != nil {
-		t.Errorf("could not close temp file: %v", err)
-		t.FailNow()
-	}
-	file, err = os.Open(filename)
-	if err != nil {
-		t.Errorf("could not open temp file: %v", err)
+		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
 	}
 
-	pl2 := pool.NewBufferpool(file, uint64(5))
 	stores2 := make([]*BPlusTree, size)
 	for frame := uint64(1); frame < size+1; frame++ {
 		s, err := ReadBpTreeFromDisk(pl2, frame)
@@ -375,6 +362,13 @@ func TestWriteAndRetrieveFromDiskMultiple(t *testing.T) {
 		stores2[frame-1] = s
 
 	}
+
+	t.Cleanup(func() {
+		pl1.Close()
+		pl1.Clean()
+		pl2.Close()
+		pl2.Clean()
+	})
 
 	for key, value := range values {
 		step := 0

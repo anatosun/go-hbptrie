@@ -2,9 +2,14 @@ package pool
 
 import (
 	"hbtrie/internal/kverrors"
+	"os"
 )
 
 const frameMaxNumberOfPages = 1000
+
+func pagePosition(pageId uint64) uint64 {
+	return frameMetaSize() + pageId*PageSize
+}
 
 // Frame is a self-managed unit of the buffer pool. It consists in a double linked list of pages.
 // Each page, when queried, is pushed to the head of the list. Pages on the tail of the list are the least recently used.
@@ -19,6 +24,7 @@ type frame struct {
 	allocation uint64
 	root       uint64
 	size       uint64
+	file       *os.File
 }
 
 func (l *frame) push(p *Page) {
@@ -41,7 +47,7 @@ func (l *frame) boost(p *Page) {
 	l.push(p)
 }
 
-func newFrame(allocation uint64) *frame {
+func newFrame(file *os.File, allocation uint64) *frame {
 
 	if allocation < 3 {
 		panic("allocation for a frame must at least be of 3 pages")
@@ -52,6 +58,7 @@ func newFrame(allocation uint64) *frame {
 		tail:       new(Page),
 		pages:      make(map[uint64]*Node),
 		allocation: allocation,
+		file:       file,
 	}
 	l.head.next = l.tail
 	l.tail.prev = l.head
