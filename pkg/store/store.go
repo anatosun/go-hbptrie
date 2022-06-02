@@ -69,13 +69,16 @@ func NewStore(options *StoreOptions) (Store, error) {
 		options.storePath = path.Join(os.TempDir(), "hb_store.db")
 	}
 
-	pool := pool.NewBufferpool(nil, uint64(bufferpoolSize))
+	p, err := pool.NewBufferpool(uint64(bufferpoolSize))
+	if err != nil {
+		return nil, err
+	}
 
 	return &HBTrieStore{
 		storePath: options.storePath,
 		chunkSize: options.chunkSize,
-		pool:      pool,
-		hbtrie:    hbtrie.NewHBPlusTrie(pool),
+		pool:      p,
+		hbtrie:    hbtrie.NewHBPlusTrie(p),
 	}, nil
 }
 
