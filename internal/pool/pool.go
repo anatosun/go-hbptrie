@@ -471,11 +471,11 @@ func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, nframes uint64, er
 
 	for id := uint64(1); id < nframes+1; id++ {
 		if id == 1 {
-			root, _, err = pool.ReadTree(id)
+			rootPageId, _, err := pool.ReadTree(id)
 			if err != nil {
 				return 0, 0, nframes, err
 			}
-			if root == 0 {
+			if rootPageId == 0 {
 				return 0, 0, nframes, &kverrors.InvalidNodeError{}
 			}
 			continue

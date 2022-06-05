@@ -8,23 +8,11 @@ import (
 	"testing"
 )
 
-var store *HBTrieInstance
 var values map[[64]byte]uint64
 
 const size = 1000
 
 func TestInit(t *testing.T) {
-	p, err := pool.NewBufferpool(10)
-	if err != nil {
-		t.Errorf("while creating bufferpool: %v", err)
-		t.FailNow()
-	}
-	t.Cleanup(func() {
-		p.Close()
-		p.Clean()
-
-	})
-	store = NewHBPlusTrie(p)
 
 	values = make(map[[64]byte]uint64)
 	h := sha512.New()
@@ -38,10 +26,6 @@ func TestInit(t *testing.T) {
 		values[key] = value
 	}
 
-	if store.Len() != 0 {
-		t.Errorf("expected size %d, got %d", 0, store.Len())
-		t.FailNow()
-	}
 }
 
 func TestInsertBelowChunkSize(t *testing.T) {
@@ -55,7 +39,7 @@ func TestInsertBelowChunkSize(t *testing.T) {
 		p.Clean()
 
 	})
-	store = NewHBPlusTrie(p)
+	store := NewHBPlusTrie(p)
 
 	step := 0
 
@@ -91,7 +75,7 @@ func TestInsertAboveChunkSize(t *testing.T) {
 		p.Clean()
 
 	})
-	store = NewHBPlusTrie(p)
+	store := NewHBPlusTrie(p)
 
 	step := 0
 
@@ -127,7 +111,7 @@ func TestInsertSimilarAboveChunkSize(t *testing.T) {
 		p.Clean()
 
 	})
-	store = NewHBPlusTrie(p)
+	store := NewHBPlusTrie(p)
 
 	step := 0
 	h := sha1.New()
@@ -177,7 +161,7 @@ func TestUpdateKeys(t *testing.T) {
 		p.Clean()
 
 	})
-	store = NewHBPlusTrie(p)
+	store := NewHBPlusTrie(p)
 
 	step := 0
 	h := sha1.New()
@@ -226,12 +210,13 @@ func TestInsertWithPageEviction(t *testing.T) {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
 	}
+
 	t.Cleanup(func() {
 		p.Close()
 		p.Clean()
-
 	})
-	store = NewHBPlusTrie(p)
+
+	store := NewHBPlusTrie(p)
 
 	step := 0
 	for key, value := range values {
@@ -259,18 +244,15 @@ func TestInsertWithPageEviction(t *testing.T) {
 }
 
 func TestWriteAndRetrieveFromDisk(t *testing.T) {
+	TestInit(t)
 
 	p1, err := pool.NewBufferpool(5)
 	if err != nil {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
 	}
-	t.Cleanup(func() {
-		p1.Close()
-		p1.Clean()
 
-	})
-	store = NewHBPlusTrie(p1)
+	store := NewHBPlusTrie(p1)
 	step := 0
 	for key, value := range values {
 
@@ -279,6 +261,12 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 			t.Errorf("[step %d] while inserting to kv store(%d): %v", step, key, err)
 			t.FailNow()
 		}
+
+		step++
+	}
+
+	step = 0
+	for key, value := range values {
 
 		v, err := store.Search(key[:])
 		if err != nil {
@@ -293,7 +281,12 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 
 		step++
 	}
-	store.Write()
+
+	err = store.Write()
+	if err != nil {
+		t.Errorf("while writing to disk: %v", err)
+		t.FailNow()
+	}
 	err = p1.Close()
 	if err != nil {
 		t.Errorf("while closing bufferpool: %v", err)
@@ -305,13 +298,6 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 		t.FailNow()
 	}
 
-	t.Cleanup(func() {
-		p1.Close()
-		p1.Clean()
-		p2.Close()
-		p2.Clean()
-
-	})
 	store2, err := Read(p2)
 	if err != nil {
 		t.Errorf("while reading from file: %v", err)
@@ -343,4 +329,8 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 	if good < len(values) {
 		t.Errorf("only %d/%d were retrieved\n", good, len(values))
 	}
+
+	p2.Close()
+	p1.Clean()
+	p2.Clean()
 }

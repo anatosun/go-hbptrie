@@ -302,6 +302,7 @@ func (bpt *BPlusTree) insert(e pool.Entry) (bool, error) {
 
 		newRoot.InsertChildAt(0, oldRoot)
 		bpt.root = newRoot
+		bpt.pool.SetRoot(bpt.frameId, bpt.root.Id)
 
 		if err := bpt.split(newRoot.Id, oldRoot.Id, rightSibling.Id, 0); err != nil {
 			return false, err

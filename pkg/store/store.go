@@ -83,13 +83,11 @@ func NewStore(options *StoreOptions) (Store, error) {
 }
 
 func (s *HBTrieStore) Close() error {
-	// TODO: Implement
-	return nil
+	return s.pool.Close()
 }
 
 func (s *HBTrieStore) DeleteStore() error {
-	// TODO: Implement
-	return nil
+	return s.pool.Clean()
 }
 
 func (s *HBTrieStore) Get(key []byte) (value uint64, err error) {

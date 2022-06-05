@@ -66,10 +66,12 @@ func TestDeleteStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot delete the store %v", err)
 	}
+	store = nil
 }
 
 func TestInitWithoutPath(t *testing.T) {
-	store, err := NewStore(&StoreOptions{chunkSize: 8})
+	var err error
+	store, err = NewStore(&StoreOptions{chunkSize: 8})
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
@@ -95,7 +97,8 @@ func TestInitWithoutPath(t *testing.T) {
 }
 
 func TestInitWithoutChunkSize(t *testing.T) {
-	store, err := NewStore(&StoreOptions{storePath: testStorePath})
+	var err error
+	store, err = NewStore(&StoreOptions{storePath: testStorePath})
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
@@ -120,7 +123,8 @@ func TestInitWithoutChunkSize(t *testing.T) {
 }
 
 func TestInitWithDefault(t *testing.T) {
-	store, err := NewStore(&StoreOptions{})
+	var err error
+	store, err = NewStore(&StoreOptions{})
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
