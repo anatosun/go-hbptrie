@@ -66,10 +66,10 @@ func NewStore(options *StoreOptions) (Store, error) {
 	}
 
 	if len(options.storePath) == 0 {
-		options.storePath = path.Join(os.TempDir(), "hb_store.db")
+		options.storePath = path.Join(os.TempDir(), "hb_store")
 	}
 
-	p, err := pool.NewBufferpool(uint64(bufferpoolSize))
+	p, err := pool.NewBufferpool(uint64(bufferpoolSize), options.storePath)
 	if err != nil {
 		return nil, err
 	}

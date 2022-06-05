@@ -4,16 +4,19 @@ import (
 	"crypto/sha1"
 	"hbtrie/internal/pool"
 	"math/rand"
+	"os"
+	"path"
 	"testing"
 )
 
 var store *BPlusTree
 var values map[[16]byte]uint64
+var storeDataPath = path.Join(os.TempDir(), "hb_store")
 
 const size = 8000
 
 func TestInit(t *testing.T) {
-	p, err := pool.NewBufferpool(10)
+	p, err := pool.NewBufferpool(10, storeDataPath)
 	if err != nil {
 		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
@@ -116,7 +119,7 @@ func TestUpdate(t *testing.T) {
 
 func TestPageEviction(t *testing.T) {
 
-	p, err := pool.NewBufferpool(10)
+	p, err := pool.NewBufferpool(10, storeDataPath)
 	if err != nil {
 		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
@@ -158,7 +161,7 @@ func TestPageEviction(t *testing.T) {
 
 func TestWriteOnDisk(t *testing.T) {
 
-	p, err := pool.NewBufferpool(10)
+	p, err := pool.NewBufferpool(10, storeDataPath)
 	if err != nil {
 		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
@@ -205,7 +208,7 @@ func TestWriteOnDisk(t *testing.T) {
 
 func TestWriteAndRetrieveFromDisk(t *testing.T) {
 
-	p, err := pool.NewBufferpool(5)
+	p, err := pool.NewBufferpool(5, storeDataPath)
 	if err != nil {
 		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
@@ -249,7 +252,7 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 		t.FailNow()
 	}
 
-	p, err = pool.NewBufferpool(5)
+	p, err = pool.NewBufferpool(5, storeDataPath)
 	if err != nil {
 		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
@@ -279,7 +282,7 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 
 func TestWriteAndRetrieveFromDiskMultiple(t *testing.T) {
 
-	pl1, err := pool.NewBufferpool(uint64(5))
+	pl1, err := pool.NewBufferpool(uint64(5), storeDataPath)
 	if err != nil {
 		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()
@@ -346,7 +349,7 @@ func TestWriteAndRetrieveFromDiskMultiple(t *testing.T) {
 		}
 	}
 
-	pl2, err := pool.NewBufferpool(uint64(5))
+	pl2, err := pool.NewBufferpool(uint64(5), storeDataPath)
 	if err != nil {
 		t.Errorf("could not create bufferpool: %v", err)
 		t.FailNow()

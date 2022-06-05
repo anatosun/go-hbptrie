@@ -11,8 +11,7 @@ import (
 
 // number of maximum frames per pool
 const poolMaxNumberOfTrees = 100000
-const dataPath = "./data/"
-const hbFilename = "hb_meta"
+const hbFilename = "hb_meta.dbm"
 
 type Bufferpool struct {
 	frames     map[uint64]*frame
@@ -37,8 +36,8 @@ type Bufferpool struct {
 // NewBufferpool returns a new bufferpool with the given underlying file and allocation size.
 // The read/write to disk will be performed from/to the given file.
 // The allocation size is the number of pages that will be allocated for each frame before IO operations.
-func NewBufferpool(allocation uint64) (*Bufferpool, error) {
-	dp := filepath.Join(dataPath)
+func NewBufferpool(allocation uint64, dataPath string) (*Bufferpool, error) {
+	dp := filepath.Join(dataPath, "hbdata/")
 	err := os.MkdirAll(dp, 0755)
 	if err != nil {
 		return nil, err
@@ -131,7 +130,7 @@ func (pool *Bufferpool) getFrameIds() []uint64 {
 }
 
 func (pool *Bufferpool) filename(frameId uint64) string {
-	filename := fmt.Sprintf("frame_%d", frameId)
+	filename := fmt.Sprintf("frame_%d.db", frameId)
 	filename = filepath.Join(pool.dataPath, filename)
 	return filename
 }

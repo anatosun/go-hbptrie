@@ -11,7 +11,7 @@ import (
 var (
 	store         Store
 	values        map[[256]byte]uint64
-	testStorePath = path.Join(os.TempDir(), "testing_hb_store.db")
+	testStorePath = path.Join(os.TempDir(), "testing_hb_store")
 )
 
 const (
@@ -244,7 +244,7 @@ func TestUpdate(t *testing.T) {
 
 func TestInsert2Bytes(t *testing.T) {
 	store, err := NewStore(&StoreOptions{
-		storePath: path.Join(os.TempDir(), "testing_2bytes_hb_store.db"),
+		storePath: path.Join(os.TempDir(), "testing_2bytes_hb_store"),
 		chunkSize: 2,
 	})
 

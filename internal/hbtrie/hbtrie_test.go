@@ -5,10 +5,13 @@ import (
 	"crypto/sha512"
 	"hbtrie/internal/pool"
 	"math/rand"
+	"os"
+	"path"
 	"testing"
 )
 
 var values map[[64]byte]uint64
+var storeDataPath = path.Join(os.TempDir(), "hb_store")
 
 const size = 1000
 
@@ -29,7 +32,7 @@ func TestInit(t *testing.T) {
 }
 
 func TestInsertBelowChunkSize(t *testing.T) {
-	p, err := pool.NewBufferpool(10)
+	p, err := pool.NewBufferpool(10, storeDataPath)
 	if err != nil {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
@@ -65,7 +68,7 @@ func TestInsertBelowChunkSize(t *testing.T) {
 }
 
 func TestInsertAboveChunkSize(t *testing.T) {
-	p, err := pool.NewBufferpool(10)
+	p, err := pool.NewBufferpool(10, storeDataPath)
 	if err != nil {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
@@ -101,7 +104,7 @@ func TestInsertAboveChunkSize(t *testing.T) {
 }
 
 func TestInsertSimilarAboveChunkSize(t *testing.T) {
-	p, err := pool.NewBufferpool(10)
+	p, err := pool.NewBufferpool(10, storeDataPath)
 	if err != nil {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
@@ -151,7 +154,7 @@ func TestInsertSimilarAboveChunkSize(t *testing.T) {
 }
 
 func TestUpdateKeys(t *testing.T) {
-	p, err := pool.NewBufferpool(5)
+	p, err := pool.NewBufferpool(5, storeDataPath)
 	if err != nil {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
@@ -205,7 +208,7 @@ func TestUpdateKeys(t *testing.T) {
 
 func TestInsertWithPageEviction(t *testing.T) {
 
-	p, err := pool.NewBufferpool(5)
+	p, err := pool.NewBufferpool(5, storeDataPath)
 	if err != nil {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
@@ -246,7 +249,7 @@ func TestInsertWithPageEviction(t *testing.T) {
 func TestWriteAndRetrieveFromDisk(t *testing.T) {
 	TestInit(t)
 
-	p1, err := pool.NewBufferpool(5)
+	p1, err := pool.NewBufferpool(5, storeDataPath)
 	if err != nil {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
@@ -292,7 +295,7 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 		t.Errorf("while closing bufferpool: %v", err)
 		t.FailNow()
 	}
-	p2, err := pool.NewBufferpool(5)
+	p2, err := pool.NewBufferpool(5, storeDataPath)
 	if err != nil {
 		t.Errorf("while creating bufferpool: %v", err)
 		t.FailNow()
