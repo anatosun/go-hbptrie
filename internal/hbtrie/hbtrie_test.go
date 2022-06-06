@@ -13,7 +13,7 @@ import (
 var values map[[64]byte]uint64
 var storeDataPath = path.Join(os.TempDir(), "hb_store")
 
-const size = 1000
+const size = 10
 
 func TestInit(t *testing.T) {
 
@@ -272,6 +272,7 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 	for key, value := range values {
 
 		v, err := store.Search(key[:])
+		t.Logf("[step %d] searching for key '%v'", step, key)
 		if err != nil {
 			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
 			t.FailNow()

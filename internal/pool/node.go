@@ -10,13 +10,14 @@ import (
 
 // Node is the unit of the B+ tree and is 3897 bytes long
 type Node struct {
-	*Page                        // 25 byte
-	Next             uint64      // 8 byte
-	Prev             uint64      // 8 byte
-	Children         [120]uint64 // 960 byte
-	Entries          [120]Entry  // 2880 byte
-	NumberOfChildren uint64      // 8 byte
-	NumberOfEntries  uint64      // 8 byte
+	*Page                          // 25 byte
+	Next               uint64      // 8 byte
+	Prev               uint64      // 8 byte
+	Children           [120]uint64 // 960 byte
+	Entries            [120]Entry  // 2880 byte
+	NumberOfChildren   uint64      // 8 byte
+	NumberOfEntries    uint64      // 8 byte
+	CurrentEntriesSize uint64
 }
 
 func NodeHeaderLen() int {
@@ -78,7 +79,7 @@ func (n *Node) MarshalBinary() ([]byte, error) {
 		for j := 0; j < len(eb); j++ {
 			buf[cursor+j] = eb[j]
 		}
-		cursor += EntryLen()
+		cursor += e.EntryLen()
 		if cursor > capacity {
 			return buf, &kverrors.BufferOverflowError{Max: capacity, Cursor: cursor}
 		}
@@ -122,12 +123,12 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	}
 	for i := 0; i < int(n.NumberOfEntries); i++ {
 		e := Entry{}
-		err := e.UnmarshalEntry(data[cursor : cursor+EntryLen()])
+		err := e.UnmarshalEntry(data[cursor:])
 		if err != nil {
 			return err
 		}
 		n.Entries[i] = e
-		cursor += EntryLen()
+		cursor += e.EntryLen()
 	}
 	if n.NumberOfChildren > uint64(len(n.Children)) {
 		return &kverrors.OverflowError{Type: "Number of children", Actual: n.NumberOfChildren, Max: len(n.Children)}

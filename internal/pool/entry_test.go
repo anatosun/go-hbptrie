@@ -12,15 +12,14 @@ func TestMarshalUnmarshalEntry(t *testing.T) {
 		t.Errorf("expected size %d, got %d", 1, unsafe.Sizeof(testBool))
 		t.FailNow()
 	}
-
-	if EntryLen() != 25 {
-		t.Errorf("expected 25, got %d", EntryLen())
+	k := [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15}
+	fk := [20]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 17, 18, 19, 20}
+	v := uint64(math.MaxUint64)
+	e := Entry{Key: k, Value: v, IsTree: true, FullKey: fk[:]}
+	if e.EntryLen() != 53 {
+		t.Errorf("expected 53, got %d", e.EntryLen())
 		t.FailNow()
 	}
-
-	k := [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15}
-	v := uint64(math.MaxUint64)
-	e := Entry{Key: k, Value: v, IsTree: true}
 	data, err := e.MarshalEntry()
 	if err != nil {
 		t.Errorf("while marshaling: %v", err)

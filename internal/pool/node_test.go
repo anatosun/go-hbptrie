@@ -17,9 +17,11 @@ func TestMarshalUnmarshalNode(t *testing.T) {
 	for i := range node.Children {
 		h.Write([]byte{byte(i)})
 		key := [16]byte{}
+		fullKey := [20]byte{}
 		copy(key[:], h.Sum(nil)[:16])
+		copy(fullKey[:], h.Sum(nil)[:20])
 		value := rand.Uint64()
-		entry := Entry{Key: key, Value: value}
+		entry := Entry{Key: key, Value: value, FullKey: fullKey[:]}
 		node.InsertEntryAt(i, entry)
 		child := Node{Page: NewPage(uint64(i + offset))}
 		node.InsertChildAt(i, &child)
@@ -98,9 +100,11 @@ func TestMarshalUnmarshalNodeHalfFull(t *testing.T) {
 	for i := 0; i <= len(node.Children)/2; i++ {
 		h.Write([]byte{byte(i)})
 		key := [16]byte{}
+		fullKey := [20]byte{}
 		copy(key[:], h.Sum(nil)[:16])
+		copy(fullKey[:], h.Sum(nil)[:20])
 		value := rand.Uint64()
-		entry := Entry{Key: key, Value: value}
+		entry := Entry{Key: key, Value: value, FullKey: fullKey[:]}
 		node.InsertEntryAt(i, entry)
 		child := Node{Page: NewPage(uint64(i + offset))}
 		node.InsertChildAt(i, &child)

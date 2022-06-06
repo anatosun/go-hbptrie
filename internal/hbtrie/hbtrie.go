@@ -64,7 +64,7 @@ func (hbt *HBTrieInstance) Insert(key []byte, value uint64) (err error) {
 		// Key doesn't exist
 		if errors.As(err, &errKeyNotFound) {
 			hbt.size++
-			return hbt.insert(trimmedKey, value, bpt)
+			return hbt.insert(trimmedKey, value, key, bpt)
 		} else {
 			// Unknown error
 			return err
@@ -73,7 +73,7 @@ func (hbt *HBTrieInstance) Insert(key []byte, value uint64) (err error) {
 	}
 	// If key exists, then update the value
 	// We have the reference to the last subtree and the remaining key.
-	err = hbt.insert(trimmedKey, value, bpt)
+	err = hbt.insert(trimmedKey, value, key, bpt)
 
 	return err
 
@@ -83,7 +83,7 @@ func (hbt *HBTrieInstance) Len() uint64 {
 	return hbt.size
 }
 
-func (hbt *HBTrieInstance) insert(key []byte, value uint64, bpt *bptree.BPlusTree) error {
+func (hbt *HBTrieInstance) insert(key []byte, value uint64, fullKey []byte, bpt *bptree.BPlusTree) error {
 	chunkedKey, trimmedKey := createChunkFromKey(key)
 	// If key is longer than 16 bytes
 	if len(key) > 16 {
@@ -92,10 +92,10 @@ func (hbt *HBTrieInstance) insert(key []byte, value uint64, bpt *bptree.BPlusTre
 			return err
 		}
 		// Create recursively a new b+ tree instance
-		return hbt.insert(*trimmedKey, value, subTree)
+		return hbt.insert(*trimmedKey, value, fullKey, subTree)
 	} else {
 		// Key is smaller than 16 bytes => create a leaf node.
-		success, err := bpt.Insert(*chunkedKey, value)
+		success, err := bpt.InsertWithFullKey(*chunkedKey, value, fullKey)
 		if success {
 			return nil
 		}

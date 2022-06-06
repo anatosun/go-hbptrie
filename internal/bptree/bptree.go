@@ -91,6 +91,27 @@ func (bpt *BPlusTree) Insert(key [16]byte, value uint64) (success bool, err erro
 	return success, bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 }
 
+// Insert puts a key/value pair in the B+ tree.
+func (bpt *BPlusTree) InsertWithFullKey(key [16]byte, value uint64, fullKey []byte) (success bool, err error) {
+	copyFullKey := make([]byte, len(fullKey))
+	copy(copyFullKey, fullKey)
+
+	e := pool.Entry{Key: key, Value: value, FullKey: copyFullKey}
+
+	success, err = bpt.insert(e)
+
+	if success {
+		bpt.size++
+		return success, bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
+	}
+
+	if err != nil {
+		return success, err
+	}
+
+	return success, bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
+}
+
 // Insert a subtree for a certain key in the B+ tree.
 func (bpt *BPlusTree) InsertSubTree(key [16]byte, frameId uint64) (success bool, err error) {
 
@@ -127,6 +148,7 @@ func (bpt *BPlusTree) Remove(key [16]byte) (value uint64, err error) {
 			return 0, err
 		}
 		bpt.size--
+		node.CurrentEntriesSize -= uint64(e.EntryLen())
 
 		return e.Value, bpt.pool.Update(bpt.frameId, bpt.root.Id, uint64(bpt.size))
 	}
@@ -350,6 +372,7 @@ func (bpt *BPlusTree) insertLeaf(id uint64, e pool.Entry) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	n.CurrentEntriesSize += uint64(e.EntryLen())
 
 	return true, err
 }
@@ -413,7 +436,7 @@ func (bpt *BPlusTree) insertInternal(id uint64, e pool.Entry) (bool, error) {
 // full asserts if the node is full with respect to order and fanout.
 func (bpt *BPlusTree) full(n *pool.Node) bool {
 	if n.IsLeaf() {
-		return n.NumberOfEntries == (2*bpt.fanout)-1
+		return n.NumberOfEntries == (2*bpt.fanout)-1 || n.CurrentEntriesSize > 2900
 	}
 	return n.NumberOfEntries == (2*bpt.order)-1
 }
