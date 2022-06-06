@@ -11,7 +11,7 @@ import (
 var (
 	store         Store
 	values        map[[256]byte]uint64
-	testStorePath = path.Join(os.TempDir(), "testing_hb_store")
+	testStorePath = path.Join(os.TempDir(), "hb_store_test")
 )
 
 const (
@@ -160,6 +160,26 @@ func TestInsert(t *testing.T) {
 			t.FailNow()
 		}
 	}
+}
+
+func TestGet(t *testing.T) {
+	for k, v := range values {
+		actual, err := store.Get(k[:])
+		if err != nil {
+			t.Fatalf("Cannot get a value from store: %v", err)
+		}
+
+		if v != actual {
+			t.Fatalf("expected %v, got %v\n", v, actual)
+		}
+	}
+}
+
+func TestFlush(t *testing.T) {
+	err := store.FlushWriteBuffer()
+	if err != nil {
+		t.Errorf("while flushing kv store: %v", err)
+	}
 
 	expected := len(values)
 	actual := int(store.Len())
@@ -170,7 +190,7 @@ func TestInsert(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
+func TestGetAfterFlush(t *testing.T) {
 	for k, v := range values {
 		actual, err := store.Get(k[:])
 		if err != nil {
@@ -206,41 +226,11 @@ func TestUpdate(t *testing.T) {
 		}
 	}
 
-	expected := len(values)
-	actual := int(store.Len())
-
-	if expected != actual {
-		t.Errorf("expected %d, got %d", expected, actual)
-		t.FailNow()
-	}
+	TestFlush(t)
 
 	TestClose(t)
 	TestDeleteStore(t)
 }
-
-// func TestRemove(t *testing.T) {
-
-// 	if store.Len() == 0 {
-// 		TestInsert(t)
-// 	}
-
-// 	for i := 0; i < len(values); i++ {
-// 		err := store.Delete(values[i])
-// 		if err != nil {
-// 			t.Errorf("while removing %v: %v", values[i], err)
-// 			t.FailNow()
-// 		}
-
-// 	}
-
-// 	expected := 0
-// 	actual := int(store.Len())
-
-// 	if expected != actual {
-// 		t.Errorf("expected %d, got %d", expected, actual)
-// 		t.FailNow()
-// 	}
-// }
 
 func TestInsert2Bytes(t *testing.T) {
 	store, err := NewStore(&StoreOptions{
@@ -270,6 +260,11 @@ func TestInsert2Bytes(t *testing.T) {
 			t.Errorf("while inserting to kv store(%d): %v", k, err)
 			t.FailNow()
 		}
+	}
+
+	err = store.FlushWriteBuffer()
+	if err != nil {
+		t.Errorf("while flushing kv store: %v", err)
 	}
 
 	expected := len(values)

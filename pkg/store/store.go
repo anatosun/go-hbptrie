@@ -1,8 +1,11 @@
 package store
 
 import (
+	"errors"
 	"hbtrie/internal/hbtrie"
+	"hbtrie/internal/kverrors"
 	"hbtrie/internal/pool"
+	"hbtrie/internal/writebufferindex"
 	"os"
 	"path"
 )
@@ -32,8 +35,11 @@ type Store interface {
 	// and false in the case of an update
 	Put(key []byte, value uint64) (inserted bool, err error)
 
-	// Delete deletes the value for the given key.
-	Delete(key []byte) (err error)
+	// Flushes the Write buffer index. Inserts all entries from write buffer to hbtrie
+	FlushWriteBuffer() error
+
+	// Flushes Write Buffer and then writes entries from hbtrie to disk.
+	Flush() error
 
 	// Len returns the number of items in the store.
 	Len() uint64
@@ -49,10 +55,11 @@ type StoreOptions struct {
 }
 
 type HBTrieStore struct {
-	storePath string
-	chunkSize int
-	pool      *pool.Bufferpool
-	hbtrie    *hbtrie.HBTrieInstance
+	storePath   string
+	chunkSize   int
+	pool        *pool.Bufferpool
+	hbtrie      *hbtrie.HBTrieInstance
+	writeBuffer *writebufferindex.WriteBufferIndex
 }
 
 const (
@@ -74,11 +81,15 @@ func NewStore(options *StoreOptions) (Store, error) {
 		return nil, err
 	}
 
+	hbt := hbtrie.NewHBPlusTrie(p)
+	wb := writebufferindex.NewWriteBufferIndex(hbt)
+
 	return &HBTrieStore{
-		storePath: options.storePath,
-		chunkSize: options.chunkSize,
-		pool:      p,
-		hbtrie:    hbtrie.NewHBPlusTrie(p),
+		storePath:   options.storePath,
+		chunkSize:   options.chunkSize,
+		pool:        p,
+		hbtrie:      hbt,
+		writeBuffer: wb,
 	}, nil
 }
 
@@ -91,22 +102,42 @@ func (s *HBTrieStore) DeleteStore() error {
 }
 
 func (s *HBTrieStore) Get(key []byte) (value uint64, err error) {
-	val, err := s.hbtrie.Search(key)
-	return val, err
+	var keyError *kverrors.KeyNotFoundError
+	val, err := s.writeBuffer.Search(key)
+	// If key has been found in write buffer index, then return val
+	if err == nil {
+		return val, nil
+	}
+
+	// If key has not been found, then search in hbtrie
+	if errors.As(err, &keyError) {
+		val, err = s.hbtrie.Search(key)
+		return val, err
+	}
+
+	// if writebuffer returned an unknown error, then throw error
+	return 0, err
 }
 
 func (s *HBTrieStore) Put(key []byte, value uint64) (inserted bool, err error) {
-	err = s.hbtrie.Insert(key, value)
-
-	if err != nil {
-		return false, err
-	}
+	// Insert entry to write buffer only
+	s.writeBuffer.Insert(key, value)
 
 	return true, nil
 }
 
-func (s *HBTrieStore) Delete(key []byte) (err error) {
-	panic("Not implemented")
+func (s *HBTrieStore) FlushWriteBuffer() error {
+	return s.writeBuffer.Flush()
+}
+
+func (s *HBTrieStore) Flush() error {
+	err := s.FlushWriteBuffer()
+	if err != nil {
+		return err
+	}
+	err = s.hbtrie.Write()
+
+	return err
 }
 
 func (s *HBTrieStore) Len() uint64 {

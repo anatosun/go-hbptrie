@@ -11,7 +11,7 @@ import (
 
 var store *BPlusTree
 var values map[[16]byte]uint64
-var storeDataPath = path.Join(os.TempDir(), "hb_store")
+var storeDataPath = path.Join(os.TempDir(), "hbt_store_bpt_test")
 
 const size = 8000
 
