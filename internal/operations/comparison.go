@@ -9,12 +9,10 @@ func Compare(a, b [16]byte) int {
 
 }
 
-// States whether a key is null.
 func IsNull(a [16]byte) bool {
 	return Compare(a, [16]byte{}) == 0
 }
 
-// States whether two keys are equal
 func Equal(a, b [16]byte) bool {
 	return Compare(a, b) == 0
 }
