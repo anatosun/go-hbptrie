@@ -8,23 +8,26 @@ import (
 )
 
 type HBTrieInstance struct {
-	rootTree  *bptree.BPlusTree // Pointer to root B+ tree
+	rootTree  *bptree.BPlusTree // Pointer to Root B+ tree
 	pool      *pool.Bufferpool
 	chunkSize int // default 16 bytes
 	size      uint64
 }
 
-func NewHBPlusTrie(chunkSize int, pool *pool.Bufferpool) *HBTrieInstance {
+// Initialises a new HB+ Trie instance with the given bufferpool.
+func NewHBPlusTrie(pool *pool.Bufferpool) *HBTrieInstance {
 	tree := bptree.NewBplusTree(pool)
+
 	return &HBTrieInstance{
 		pool:      pool,
-		chunkSize: chunkSize,
+		chunkSize: 16,
 		rootTree:  tree,
 	}
 }
 
+// Returns the value for the given key. If it does not exist return 0 and an error.
 func (hbt *HBTrieInstance) Search(key []byte) (uint64, error) {
-	// Search in the root tree for the chunked key
+	// Search in the Root tree for the chunked key
 	val, _, _, err := hbt.search(hbt.rootTree, key)
 	if err != nil {
 		return 0, err
@@ -36,7 +39,7 @@ func (hbt *HBTrieInstance) Search(key []byte) (uint64, error) {
 // search recursively search for a key in the node and its children.
 func (hbt *HBTrieInstance) search(bpt *bptree.BPlusTree, key []byte) (uint64, []byte, *bptree.BPlusTree, error) {
 	chunkedKey, trimmedKey := createChunkFromKey(key)
-	// Search in the root tree for the chunked key
+	// Search in the Root tree for the chunked key
 	val, err := bpt.SearchTreeEntry(*chunkedKey)
 	if err != nil {
 		return 0, key, bpt, err
@@ -55,8 +58,9 @@ func (hbt *HBTrieInstance) search(bpt *bptree.BPlusTree, key []byte) (uint64, []
 	}
 }
 
+// Inserts the key and value in the trie.
 func (hbt *HBTrieInstance) Insert(key []byte, value uint64) (err error) {
-	var errKeyNotFound *kverrors.KeyNotFoundError
+	errKeyNotFound := &kverrors.KeyNotFoundError{Key: key}
 
 	_, trimmedKey, bpt, err := hbt.search(hbt.rootTree, key)
 	if err != nil {
@@ -78,10 +82,12 @@ func (hbt *HBTrieInstance) Insert(key []byte, value uint64) (err error) {
 
 }
 
+// Returns the number of keys in the trie.
 func (hbt *HBTrieInstance) Len() uint64 {
 	return hbt.size
 }
 
+// Recursively inserts the key and value in the trie and insert subsequent B+ trees if required.
 func (hbt *HBTrieInstance) insert(key []byte, value uint64, bpt *bptree.BPlusTree) error {
 	chunkedKey, trimmedKey := createChunkFromKey(key)
 	// If key is longer than 16 bytes
@@ -117,6 +123,7 @@ func (hbt *HBTrieInstance) createSubTree(bpt *bptree.BPlusTree, key [16]byte) (*
 	return subTree, err
 }
 
+// Returns the first 16 byte chunk and the rest of the given key.
 func createChunkFromKey(key []byte) (*[16]byte, *[]byte) {
 	chunkedKey := [16]byte{}
 	var trimmedKey []byte
@@ -132,4 +139,31 @@ func createChunkFromKey(key []byte) (*[16]byte, *[]byte) {
 		trimmedKey = key
 	}
 	return &chunkedKey, &trimmedKey
+}
+
+// Writes the trie to disk.
+func (hbt *HBTrieInstance) Write() error {
+
+	return hbt.pool.WriteTrie(hbt.rootTree.GetFrameId(), hbt.size)
+}
+
+// Reads the trie from disk.
+func Read(pool *pool.Bufferpool) (*HBTrieInstance, error) {
+	trie := &HBTrieInstance{}
+	trie.pool = pool
+	rootId, size, nframes, err := pool.ReadTrie()
+	if err != nil {
+		return trie, err
+	}
+
+	trie.size = size
+	trie.chunkSize = 16
+	root := bptree.LoadBplusTree(pool, rootId)
+	trie.rootTree = root
+
+	for i := uint64(1); i < nframes; i++ {
+		bptree.LoadBplusTree(pool, i)
+
+	}
+	return trie, nil
 }

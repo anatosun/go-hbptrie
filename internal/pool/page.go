@@ -1,6 +1,6 @@
 package pool
 
-var PageSize uint16 = 4096
+var PageSize uint64 = 4096
 
 // Page is the unit of the Bufferpool
 
@@ -20,6 +20,7 @@ type Page struct {
 
 }
 
+// Initialises a new page with given id. On initialisation the dirty flag is set to true.
 func NewPage(id uint64) *Page {
 	return &Page{Id: id, Dirty: true, prev: nil, next: nil}
 }
