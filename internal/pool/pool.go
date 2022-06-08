@@ -20,19 +20,6 @@ type Bufferpool struct {
 	file       *os.File
 }
 
-// func (pool *Bufferpool) pagePosition(frameId, pageId uint64) uint64 {
-// 	return pool.metaMaxHeaderSize() + frameId*pool.treeMaxSize() + pageId*PageSize
-// }
-// func (pool *Bufferpool) treeMaxSize() uint64 {
-// 	return PageSize * frameMaxNumberOfPages
-// }
-// func (pool *Bufferpool) metaPosition(frameId uint64) uint64 {
-// 	return 8 + 8 + frameId*metaSize()
-// }
-// func (pool *Bufferpool) metaMaxHeaderSize() uint64 {
-// 	return pool.metaPosition(poolMaxNumberOfTrees)
-// }
-
 // NewBufferpool returns a new bufferpool with the given underlying file and allocation size.
 // The read/write to disk will be performed from/to the given file.
 // The allocation size is the number of pages that will be allocated for each frame before IO operations.
