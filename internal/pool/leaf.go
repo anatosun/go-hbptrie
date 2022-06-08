@@ -53,7 +53,7 @@ func (n *Node) Search(key [16]byte) (int, bool) {
 		cursor = (upper + lower) / 2
 		cmp := n.Entries[cursor].Key
 
-		if operations.Compare(key, cmp) == 0 {
+		if operations.Equal(key, cmp) {
 			return cursor, true
 		} else if operations.Compare(key, cmp) > 0 {
 			lower = cursor + 1

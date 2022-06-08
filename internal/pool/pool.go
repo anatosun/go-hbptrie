@@ -48,6 +48,7 @@ func NewBufferpool(allocation uint64, dataPath string) (*Bufferpool, error) {
 	return pool, err
 }
 
+
 func (pool *Bufferpool) write(frameId uint64, page *Node) error {
 	frame := pool.frames[frameId]
 	if frame == nil {
@@ -121,6 +122,7 @@ func (pool *Bufferpool) filename(frameId uint64) string {
 	filename = filepath.Join(pool.dataPath, filename)
 	return filename
 }
+
 
 // Register is used for a client to get a frame allocated in the bufferpool.
 // It returns the id of the frame which should be use for subsequent queries.
@@ -218,6 +220,7 @@ func (pool *Bufferpool) NewNode(frameId uint64) (*Node, error) {
 			}
 		}
 		node, full = frame.newNode()
+
 	}
 
 	return node, nil

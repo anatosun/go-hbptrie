@@ -1,8 +1,10 @@
 package pool
 
 import (
+
 	"crypto/rand"
 	"encoding/binary"
+
 	"hbtrie/internal/kverrors"
 	"unsafe"
 )
@@ -48,6 +50,7 @@ func (n *Node) InsertChildAt(at int, child *Node) error {
 	n.Dirty = true
 	return nil
 }
+
 
 // the two functions below implement both the BinaryMarshaler and the BinaryUnmarshaler interfaces
 // refer to https://pkg.go.dev/encoding for more informations
@@ -142,3 +145,4 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 
 	return nil
 }
+

@@ -102,6 +102,7 @@ func (l *frame) newNode() (node *Node, full bool) {
 	return node, false
 }
 
+
 // States whether the frame has reached is in-memory capacity.
 func (l *frame) full() bool {
 	return len(l.pages) >= int(l.allocation)
@@ -132,18 +133,4 @@ func (l *frame) evict() *Node {
 	return node
 }
 
-// Sets page id of the root b+ tree
-func (l *frame) setRoot(pageId uint64) {
-	l.root = pageId
-}
 
-// Returns page id of the root b+ tree
-func (l *frame) getRoot() uint64 {
-	return l.root
-}
-
-// Updates root and size in frame.
-func (l *frame) update(root, size uint64) {
-	l.root = root
-	l.size = size
-}

@@ -11,7 +11,9 @@ import (
 var (
 	store         Store
 	values        map[[256]byte]uint64
+
 	testStorePath = path.Join(os.TempDir(), "hb_store_test")
+
 )
 
 const (
@@ -82,6 +84,7 @@ func TestInitWithoutPath(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
+
 		copy(key[:32], h.Sum(nil)[:])
 		copy(key[32:64], h.Sum(nil)[:])
 		copy(key[64:96], h.Sum(nil)[:])
@@ -89,6 +92,7 @@ func TestInitWithoutPath(t *testing.T) {
 		copy(key[128:160], h.Sum(nil)[:])
 		copy(key[160:192], h.Sum(nil)[:])
 		copy(key[192:], h.Sum(nil)[:])
+
 		value := rand.Uint64()
 		values[key] = value
 	}
@@ -115,6 +119,7 @@ func TestInitWithoutChunkSize(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
+
 		copy(key[:32], h.Sum(nil)[:])
 		copy(key[32:64], h.Sum(nil)[:])
 		copy(key[64:96], h.Sum(nil)[:])
@@ -122,6 +127,7 @@ func TestInitWithoutChunkSize(t *testing.T) {
 		copy(key[128:160], h.Sum(nil)[:])
 		copy(key[160:192], h.Sum(nil)[:])
 		copy(key[192:], h.Sum(nil)[:])
+
 
 		value := rand.Uint64()
 		values[key] = value
@@ -148,6 +154,7 @@ func TestInitWithDefault(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
+
 		copy(key[:32], h.Sum(nil)[:])
 		copy(key[32:64], h.Sum(nil)[:])
 		copy(key[64:96], h.Sum(nil)[:])
@@ -155,6 +162,7 @@ func TestInitWithDefault(t *testing.T) {
 		copy(key[128:160], h.Sum(nil)[:])
 		copy(key[160:192], h.Sum(nil)[:])
 		copy(key[192:], h.Sum(nil)[:])
+
 		value := rand.Uint64()
 		values[key] = value
 	}
@@ -179,6 +187,16 @@ func TestInsert(t *testing.T) {
 			t.FailNow()
 		}
 	}
+
+
+	expected := len(values)
+	actual := int(store.Len())
+
+	if expected != actual {
+		t.Errorf("expected %d, got %d", expected, actual)
+		t.FailNow()
+	}
+
 }
 
 func TestGet(t *testing.T) {
@@ -194,10 +212,12 @@ func TestGet(t *testing.T) {
 	}
 }
 
+
 func TestFlush(t *testing.T) {
 	err := store.FlushWriteBuffer()
 	if err != nil {
 		t.Errorf("while flushing kv store: %v", err)
+
 	}
 
 	expected := len(values)
@@ -222,11 +242,14 @@ func TestGetAfterFlush(t *testing.T) {
 	}
 }
 
+
 func TestUpdate(t *testing.T) {
 
-	if store.Len() == 0 {
-		TestInsert(t)
-	}
+
+// 	if store.Len() == 0 {
+// 		TestInsert(t)
+// 	}
+
 
 	for k, v := range values {
 		r := rand.Uint64()
@@ -250,6 +273,7 @@ func TestUpdate(t *testing.T) {
 	TestClose(t)
 	TestDeleteStore(t)
 }
+
 
 func TestInsert2Bytes(t *testing.T) {
 	store, err := NewStore(&StoreOptions{
@@ -281,10 +305,12 @@ func TestInsert2Bytes(t *testing.T) {
 		}
 	}
 
+
 	err = store.FlushWriteBuffer()
 	if err != nil {
 		t.Errorf("while flushing kv store: %v", err)
 	}
+
 
 	expected := len(values)
 	actual := int(store.Len())
