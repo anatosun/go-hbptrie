@@ -312,25 +312,21 @@ func TestWriteAndRetrieveFromDisk(t *testing.T) {
 	}
 
 	step = 0
-	good := 0
 	for key, value := range values {
 
 		v, err := store2.Search(key[:])
 		if err != nil {
 			t.Errorf("[step %d] while searching for key '%v': %v", step, key, err)
-		} else {
-			good++
+			t.FailNow()
 		}
 
 		if v != value {
 			t.Errorf("[step %d] expected %v, got %v", step, value, v)
+			t.FailNow()
+
 		}
 
 		step++
-	}
-
-	if good < len(values) {
-		t.Errorf("only %d/%d were retrieved\n", good, len(values))
 	}
 
 	p2.Close()
