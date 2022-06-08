@@ -4,21 +4,19 @@ import (
 	"hbtrie/internal/pool"
 )
 
+// asks the memory reference of the given node.
 func (bpt *BPlusTree) where(id uint64) (*pool.Node, error) {
 
 	return bpt.pool.Query(bpt.frameId, id)
 
 }
 
+// queries the Bufferpool for a new node
 func (bpt *BPlusTree) allocate() (uint64, error) {
 
 	node, err := bpt.pool.NewNode(bpt.frameId)
 
 	return node.Id, err
-}
-
-func MaxNumberOfPages() uint64 {
-	return 100
 }
 
 // Write writes the tree to disk according to the BufferPool logic.

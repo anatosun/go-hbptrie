@@ -7,6 +7,7 @@ import (
 
 const frameMaxNumberOfPages = 1000
 
+// pagePosition returns the position of the page in the file.
 func pagePosition(pageId uint64) uint64 {
 	return frameMetaSize() + pageId*PageSize
 }
@@ -27,6 +28,7 @@ type frame struct {
 	file       *os.File
 }
 
+// Pushes a non-existing page to the head of the frame.
 func (l *frame) push(p *Page) {
 	l.head.next.prev = p
 	p.next = l.head.next
@@ -34,19 +36,19 @@ func (l *frame) push(p *Page) {
 	l.head.next = p
 }
 
+// Removes a page from the frame.
 func (l *frame) pop(p *Page) {
 	p.prev.next = p.next
 	p.next.prev = p.prev
 }
 
+// Pushes an existing page to the head of the frame.
 func (l *frame) boost(p *Page) {
-	if p.Id == l.tail.Id {
-		return
-	}
 	l.pop(p)
 	l.push(p)
 }
 
+// Initialises a new frame with a given file and an in-memory allocation.
 func newFrame(file *os.File, allocation uint64) *frame {
 
 	if allocation < 3 {
@@ -68,6 +70,7 @@ func newFrame(file *os.File, allocation uint64) *frame {
 	return l
 }
 
+// Returns the node (page) with the given id.
 func (l *frame) query(id uint64) *Node {
 
 	if id < 1 {
@@ -82,6 +85,7 @@ func (l *frame) query(id uint64) *Node {
 	return l.pages[id]
 }
 
+// Returns a new node (page) and false if the frame has enough in-memory capacity. Otherwise, it returns nil and false.
 func (l *frame) newNode() (node *Node, full bool) {
 	if l.full() {
 		return nil, true
@@ -98,11 +102,12 @@ func (l *frame) newNode() (node *Node, full bool) {
 	return node, false
 }
 
+// States whether the frame has reached is in-memory capacity.
 func (l *frame) full() bool {
 	return len(l.pages) >= int(l.allocation)
 }
 
-// add a new page to the frame that was previously evicted.
+// Adds a new page to the frame that was previously evicted.
 func (l *frame) add(node *Node) error {
 	if l.full() {
 		return &kverrors.FrameOverflowError{Max: l.allocation}
@@ -118,16 +123,7 @@ func (l *frame) add(node *Node) error {
 	return nil
 }
 
-// for debuggin purposes
-// func (l *frame) printLinkedList() {
-// 	p := l.head
-// 	for p != nil {
-// 		fmt.Printf("%d ", p.Id)
-// 		p = p.next
-// 	}
-// 	fmt.Println()
-// }
-
+// evicts the least recently used page and returns it.
 func (l *frame) evict() *Node {
 	p := l.tail.prev
 	l.pop(p)
@@ -146,14 +142,7 @@ func (l *frame) getRoot() uint64 {
 	return l.root
 }
 
-// func (l *frame) setSize(size uint64) {
-// 	l.size = size
-// }
-
-// func (l *frame) getSize() uint64 {
-// 	return l.size
-// }
-
+// Updates root and size in frame.
 func (l *frame) update(root, size uint64) {
 	l.root = root
 	l.size = size

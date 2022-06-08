@@ -11,10 +11,12 @@ type frameMetadata struct {
 	cursor uint64
 }
 
+// Returns the byte size of one b+ tree metadata.
 func frameMetaSize() uint64 {
 	return uint64(unsafe.Sizeof(frameMetadata{}))
 }
 
+// Implements the binary.BinaryMarshaler interface.
 func (m *frameMetadata) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, frameMetaSize())
 	bin := binary.LittleEndian
@@ -24,6 +26,7 @@ func (m *frameMetadata) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+// Implements the binary.BinaryUnmarshaler interface.
 func (m *frameMetadata) UnmarshalBinary(data []byte) error {
 	bin := binary.LittleEndian
 	m.root = bin.Uint64(data[0:8])
@@ -39,10 +42,12 @@ type hbMetatadata struct {
 	nframes uint64
 }
 
+// Returns the byte size of one hb trie metadata.
 func hbMetaSize() uint64 {
 	return uint64(unsafe.Sizeof(hbMetatadata{}))
 }
 
+// Implements the binary.BinaryMarshaler interface.
 func (m *hbMetatadata) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, hbMetaSize())
 	bin := binary.LittleEndian
@@ -52,6 +57,7 @@ func (m *hbMetatadata) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+// Implements the binary.BinaryUnmarshaler interface.
 func (m *hbMetatadata) UnmarshalBinary(data []byte) error {
 	bin := binary.LittleEndian
 	m.root = bin.Uint64(data[0:8])

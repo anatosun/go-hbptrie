@@ -3,7 +3,6 @@ package pool
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
 	"hbtrie/internal/kverrors"
 	"unsafe"
 )
@@ -19,6 +18,7 @@ type Node struct {
 	NumberOfEntries  uint64      // 8 byte
 }
 
+// NodeHeaderLen returns the length of the header of a node.
 func NodeHeaderLen() int {
 
 	id := uint64(0)
@@ -36,6 +36,7 @@ func NodeHeaderLen() int {
 
 }
 
+// NodeLen returns the length of a node.
 func (n *Node) InsertChildAt(at int, child *Node) error {
 	if at < 0 || at > len(n.Children) {
 		return &kverrors.IndexOutOfRangeError{Index: at, Length: len(n.Children)}
@@ -51,6 +52,7 @@ func (n *Node) InsertChildAt(at int, child *Node) error {
 // the two functions below implement both the BinaryMarshaler and the BinaryUnmarshaler interfaces
 // refer to https://pkg.go.dev/encoding for more informations
 
+// MarshalBinary implements the BinaryMarshaler interface.
 func (n *Node) MarshalBinary() ([]byte, error) {
 	capacity := int(PageSize) // 4KB
 	buf := make([]byte, capacity)
@@ -71,7 +73,7 @@ func (n *Node) MarshalBinary() ([]byte, error) {
 
 	for i := 0; i < int(n.NumberOfEntries); i++ {
 		e := n.Entries[i]
-		eb, err := e.MarshalEntry()
+		eb, err := e.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
@@ -100,6 +102,7 @@ func (n *Node) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+// UnmarshalBinary implements the BinaryUnmarshaler interface.
 func (n *Node) UnmarshalBinary(data []byte) error {
 	capacity := int(PageSize) // 4KB
 	if len(data) != capacity {
@@ -122,7 +125,7 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	}
 	for i := 0; i < int(n.NumberOfEntries); i++ {
 		e := Entry{}
-		err := e.UnmarshalEntry(data[cursor : cursor+EntryLen()])
+		err := e.UnmarshalBinary(data[cursor : cursor+EntryLen()])
 		if err != nil {
 			return err
 		}
@@ -138,35 +141,4 @@ func (n *Node) UnmarshalBinary(data []byte) error {
 	}
 
 	return nil
-}
-
-func (n *Node) Compare(to *Node) (bool, string) {
-	// if n.Id != to.Id {
-	// 	return false
-	// }
-	if n.NumberOfEntries != to.NumberOfEntries {
-		return false, "number of entries"
-	}
-	if n.NumberOfChildren != to.NumberOfChildren {
-		return false, "number of children"
-	}
-	// if n.Next != to.Next {
-	// 	return false
-	// }
-	// if n.Prev != to.Prev {
-	// 	return false
-	// }
-	for i := 0; i < int(n.NumberOfEntries); i++ {
-
-		comp, res := n.Entries[i].Compare(&to.Entries[i])
-		if !comp {
-			return false, fmt.Sprintf("entry %d differ in %s", i, res)
-		}
-	}
-	for i := 0; i < int(n.NumberOfChildren); i++ {
-		if n.Children[i] != to.Children[i] {
-			return false, fmt.Sprintf("child %d", i)
-		}
-	}
-	return true, ""
 }

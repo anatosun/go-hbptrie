@@ -1,7 +1,6 @@
 package bptree
 
 import (
-	"fmt"
 	"hbtrie/internal/kverrors"
 	"hbtrie/internal/operations"
 	"hbtrie/internal/pool"
@@ -416,63 +415,4 @@ func (bpt *BPlusTree) full(n *pool.Node) bool {
 		return n.NumberOfEntries == (2*bpt.fanout)-1
 	}
 	return n.NumberOfEntries == (2*bpt.order)-1
-}
-
-func (bpt *BPlusTree) Compare(to *BPlusTree) (bool, string) {
-	comp, res := bpt.root.Compare(to.root)
-	if !comp {
-		return false, fmt.Sprintf("root is different: %s", res)
-	}
-	if bpt.order != to.order {
-		return false, "order is different"
-	}
-	if bpt.fanout != to.fanout {
-		return false, "fanout is different"
-	}
-	nodes, err := bpt.pool.GetNodes(bpt.frameId)
-	if err != nil {
-		return false, "error getting nodes"
-	}
-
-	toNodes, err := to.pool.GetNodes(to.frameId)
-	if err != nil {
-		return false, "error getting nodes"
-	}
-
-	for id, node := range nodes {
-		if node == nil && toNodes[id] == nil {
-			continue
-		} else if node == nil || toNodes[id] == nil {
-			return false, fmt.Sprintf("nodes %d are different", id)
-		}
-		comp, res := node.Compare(toNodes[id])
-		if !comp {
-			return false, fmt.Sprintf("%s is different in node %d", res, id)
-		}
-	}
-
-	return true, ""
-}
-
-func (bpt *BPlusTree) KeysValues() (keys [][]byte, values []uint64) {
-	values = make([]uint64, bpt.size)
-	keys = make([][]byte, bpt.size)
-	id, _, _, _ := bpt.search(bpt.root.Id, [16]byte{0})
-	current, err := bpt.where(id)
-	if err != nil {
-		return keys, values
-	}
-	for current != nil {
-
-		for _, e := range current.Entries {
-			values = append(values, e.Value)
-			keys = append(keys, e.Key[:])
-		}
-		current, err = bpt.where(current.Next)
-		if err != nil {
-			return keys, values
-		}
-	}
-
-	return keys, values
 }

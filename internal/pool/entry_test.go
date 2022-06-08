@@ -21,13 +21,13 @@ func TestMarshalUnmarshalEntry(t *testing.T) {
 	k := [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15}
 	v := uint64(math.MaxUint64)
 	e := Entry{Key: k, Value: v, IsTree: true}
-	data, err := e.MarshalEntry()
+	data, err := e.MarshalBinary()
 	if err != nil {
 		t.Errorf("while marshaling: %v", err)
 		t.FailNow()
 	}
 	u := Entry{Key: [16]byte{1, 2, 3, 2, 5, 21, 7, 56, 9, 255, 21, 13, 13, 14, 15, 15}, Value: 0, IsTree: false}
-	err = u.UnmarshalEntry(data)
+	err = u.UnmarshalBinary(data)
 	if err != nil {
 		t.Errorf("while unmarshaling: %v", err)
 		t.FailNow()
@@ -46,7 +46,7 @@ func TestMarshalUnmarshalEntry(t *testing.T) {
 	}
 
 	u = *new(Entry)
-	err = u.UnmarshalEntry(data)
+	err = u.UnmarshalBinary(data)
 	if err != nil {
 		t.Errorf("while unmarshaling: %v", err)
 		t.FailNow()

@@ -264,6 +264,7 @@ func (pool *Bufferpool) Update(frameId, root, size uint64) error {
 
 }
 
+// Reads metadata from the given frameId from disk.
 func (pool *Bufferpool) readMetadata(frameID uint64) (frameMetadata, error) {
 	meta := frameMetadata{0, 0, 0}
 	filename := pool.filename(frameID)
@@ -295,6 +296,7 @@ func (pool *Bufferpool) readMetadata(frameID uint64) (frameMetadata, error) {
 
 }
 
+// writes metadata from the given frameId on disk.
 func (pool *Bufferpool) writeMetadata(frameId uint64, meta frameMetadata) error {
 	frame := pool.frames[frameId]
 	if frame == nil {
@@ -318,6 +320,7 @@ func (pool *Bufferpool) writeMetadata(frameId uint64, meta frameMetadata) error 
 
 }
 
+// Writes the given frame to disk.
 func (pool *Bufferpool) WriteTree(frameId uint64) error {
 
 	frame := pool.frames[frameId]
@@ -346,6 +349,7 @@ func (pool *Bufferpool) WriteTree(frameId uint64) error {
 
 }
 
+// Reads the given frame from disk.
 func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
 	if frameId > poolMaxNumberOfTrees {
 		return 0, 0, &kverrors.InvalidFrameIdError{}
@@ -386,6 +390,7 @@ func (pool *Bufferpool) ReadTree(frameId uint64) (uint64, uint64, error) {
 
 }
 
+// Closes all the files in the bufferpool.
 func (pool *Bufferpool) Close() error {
 	for _, frame := range pool.frames {
 		if frame != nil {
@@ -398,10 +403,12 @@ func (pool *Bufferpool) Close() error {
 	return pool.file.Close()
 }
 
+// Removes all the files in the bufferpool.
 func (pool *Bufferpool) Clean() error {
 	return os.RemoveAll(pool.dataPath)
 }
 
+// Writes the trie with the given root and size to disk.
 func (pool *Bufferpool) WriteTrie(root, size uint64) error {
 	frameIds := pool.getFrameIds()
 	nframes := uint64(len(frameIds))
@@ -430,6 +437,7 @@ func (pool *Bufferpool) WriteTrie(root, size uint64) error {
 	return nil
 }
 
+// Reads the trie from disk and returns the original root id, size and the number of frames.
 func (pool *Bufferpool) ReadTrie() (root uint64, size uint64, nframes uint64, err error) {
 	meta := hbMetatadata{}
 	file := pool.file
