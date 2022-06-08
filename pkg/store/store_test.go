@@ -82,7 +82,13 @@ func TestInitWithoutPath(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
-		copy(key[:], h.Sum(nil)[:])
+		copy(key[:32], h.Sum(nil)[:])
+		copy(key[32:64], h.Sum(nil)[:])
+		copy(key[64:96], h.Sum(nil)[:])
+		copy(key[96:128], h.Sum(nil)[:])
+		copy(key[128:160], h.Sum(nil)[:])
+		copy(key[160:192], h.Sum(nil)[:])
+		copy(key[192:], h.Sum(nil)[:])
 		value := rand.Uint64()
 		values[key] = value
 	}
@@ -109,7 +115,14 @@ func TestInitWithoutChunkSize(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
-		copy(key[:], h.Sum(nil)[:])
+		copy(key[:32], h.Sum(nil)[:])
+		copy(key[32:64], h.Sum(nil)[:])
+		copy(key[64:96], h.Sum(nil)[:])
+		copy(key[96:128], h.Sum(nil)[:])
+		copy(key[128:160], h.Sum(nil)[:])
+		copy(key[160:192], h.Sum(nil)[:])
+		copy(key[192:], h.Sum(nil)[:])
+
 		value := rand.Uint64()
 		values[key] = value
 	}
@@ -135,7 +148,13 @@ func TestInitWithDefault(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
-		copy(key[:], h.Sum(nil)[:])
+		copy(key[:32], h.Sum(nil)[:])
+		copy(key[32:64], h.Sum(nil)[:])
+		copy(key[64:96], h.Sum(nil)[:])
+		copy(key[96:128], h.Sum(nil)[:])
+		copy(key[128:160], h.Sum(nil)[:])
+		copy(key[160:192], h.Sum(nil)[:])
+		copy(key[192:], h.Sum(nil)[:])
 		value := rand.Uint64()
 		values[key] = value
 	}
