@@ -11,9 +11,7 @@ import (
 var (
 	store         Store
 	values        map[[256]byte]uint64
-
-	testStorePath = path.Join(os.TempDir(), "hb_store_test")
-
+	testStorePath = path.Join(os.TempDir(), "testing_hb_store.db")
 )
 
 const (
@@ -68,12 +66,10 @@ func TestDeleteStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot delete the store %v", err)
 	}
-	store = nil
 }
 
 func TestInitWithoutPath(t *testing.T) {
-	var err error
-	store, err = NewStore(&StoreOptions{chunkSize: 8})
+	store, err := NewStore(&StoreOptions{chunkSize: 8})
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
@@ -84,15 +80,7 @@ func TestInitWithoutPath(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
-
-		copy(key[:32], h.Sum(nil)[:])
-		copy(key[32:64], h.Sum(nil)[:])
-		copy(key[64:96], h.Sum(nil)[:])
-		copy(key[96:128], h.Sum(nil)[:])
-		copy(key[128:160], h.Sum(nil)[:])
-		copy(key[160:192], h.Sum(nil)[:])
-		copy(key[192:], h.Sum(nil)[:])
-
+		copy(key[:], h.Sum(nil)[:])
 		value := rand.Uint64()
 		values[key] = value
 	}
@@ -107,8 +95,7 @@ func TestInitWithoutPath(t *testing.T) {
 }
 
 func TestInitWithoutChunkSize(t *testing.T) {
-	var err error
-	store, err = NewStore(&StoreOptions{storePath: testStorePath})
+	store, err := NewStore(&StoreOptions{storePath: testStorePath})
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
@@ -119,16 +106,7 @@ func TestInitWithoutChunkSize(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
-
-		copy(key[:32], h.Sum(nil)[:])
-		copy(key[32:64], h.Sum(nil)[:])
-		copy(key[64:96], h.Sum(nil)[:])
-		copy(key[96:128], h.Sum(nil)[:])
-		copy(key[128:160], h.Sum(nil)[:])
-		copy(key[160:192], h.Sum(nil)[:])
-		copy(key[192:], h.Sum(nil)[:])
-
-
+		copy(key[:], h.Sum(nil)[:])
 		value := rand.Uint64()
 		values[key] = value
 	}
@@ -142,8 +120,7 @@ func TestInitWithoutChunkSize(t *testing.T) {
 }
 
 func TestInitWithDefault(t *testing.T) {
-	var err error
-	store, err = NewStore(&StoreOptions{})
+	store, err := NewStore(&StoreOptions{})
 	if err != nil {
 		t.Fatalf("Cannot initialize store. Got %v", err)
 	}
@@ -154,15 +131,7 @@ func TestInitWithDefault(t *testing.T) {
 	for i := 0; i < size; i++ {
 		h.Write([]byte{byte(i)})
 		key := [256]byte{}
-
-		copy(key[:32], h.Sum(nil)[:])
-		copy(key[32:64], h.Sum(nil)[:])
-		copy(key[64:96], h.Sum(nil)[:])
-		copy(key[96:128], h.Sum(nil)[:])
-		copy(key[128:160], h.Sum(nil)[:])
-		copy(key[160:192], h.Sum(nil)[:])
-		copy(key[192:], h.Sum(nil)[:])
-
+		copy(key[:], h.Sum(nil)[:])
 		value := rand.Uint64()
 		values[key] = value
 	}
@@ -188,7 +157,6 @@ func TestInsert(t *testing.T) {
 		}
 	}
 
-
 	expected := len(values)
 	actual := int(store.Len())
 
@@ -196,7 +164,6 @@ func TestInsert(t *testing.T) {
 		t.Errorf("expected %d, got %d", expected, actual)
 		t.FailNow()
 	}
-
 }
 
 func TestGet(t *testing.T) {
@@ -212,44 +179,11 @@ func TestGet(t *testing.T) {
 	}
 }
 
-
-func TestFlush(t *testing.T) {
-	err := store.FlushWriteBuffer()
-	if err != nil {
-		t.Errorf("while flushing kv store: %v", err)
-
-	}
-
-	expected := len(values)
-	actual := int(store.Len())
-
-	if expected != actual {
-		t.Errorf("expected %d, got %d", expected, actual)
-		t.FailNow()
-	}
-}
-
-func TestGetAfterFlush(t *testing.T) {
-	for k, v := range values {
-		actual, err := store.Get(k[:])
-		if err != nil {
-			t.Fatalf("Cannot get a value from store: %v", err)
-		}
-
-		if v != actual {
-			t.Fatalf("expected %v, got %v\n", v, actual)
-		}
-	}
-}
-
-
 func TestUpdate(t *testing.T) {
 
-
-// 	if store.Len() == 0 {
-// 		TestInsert(t)
-// 	}
-
+	if store.Len() == 0 {
+		TestInsert(t)
+	}
 
 	for k, v := range values {
 		r := rand.Uint64()
@@ -268,16 +202,45 @@ func TestUpdate(t *testing.T) {
 		}
 	}
 
-	TestFlush(t)
+	expected := len(values)
+	actual := int(store.Len())
+
+	if expected != actual {
+		t.Errorf("expected %d, got %d", expected, actual)
+		t.FailNow()
+	}
 
 	TestClose(t)
 	TestDeleteStore(t)
 }
 
+// func TestRemove(t *testing.T) {
+
+// 	if store.Len() == 0 {
+// 		TestInsert(t)
+// 	}
+
+// 	for i := 0; i < len(values); i++ {
+// 		err := store.Delete(values[i])
+// 		if err != nil {
+// 			t.Errorf("while removing %v: %v", values[i], err)
+// 			t.FailNow()
+// 		}
+
+// 	}
+
+// 	expected := 0
+// 	actual := int(store.Len())
+
+// 	if expected != actual {
+// 		t.Errorf("expected %d, got %d", expected, actual)
+// 		t.FailNow()
+// 	}
+// }
 
 func TestInsert2Bytes(t *testing.T) {
 	store, err := NewStore(&StoreOptions{
-		storePath: path.Join(os.TempDir(), "testing_2bytes_hb_store"),
+		storePath: path.Join(os.TempDir(), "testing_2bytes_hb_store.db"),
 		chunkSize: 2,
 	})
 
@@ -304,13 +267,6 @@ func TestInsert2Bytes(t *testing.T) {
 			t.FailNow()
 		}
 	}
-
-
-	err = store.FlushWriteBuffer()
-	if err != nil {
-		t.Errorf("while flushing kv store: %v", err)
-	}
-
 
 	expected := len(values)
 	actual := int(store.Len())

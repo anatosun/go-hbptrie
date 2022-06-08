@@ -5,12 +5,11 @@ import (
 )
 
 type KeyNotFoundError struct {
-	Key     interface{}
-	Closest interface{}
+	Value interface{}
 }
 
 func (err *KeyNotFoundError) Error() string {
-	return fmt.Sprintf("key %v not found", err.Key)
+	return fmt.Sprintf("key %v not found", err.Value)
 }
 
 type InsertionError struct {
@@ -92,12 +91,6 @@ func (err *InvalidNodeSizeError) Error() string {
 	return fmt.Sprintf("invalid node size: children (%d) and entries (%d) cannot both be superior to 0", err.NumberOfChildren, err.NumberOfEntries)
 }
 
-type InvalidNodeError struct{}
-
-func (err *InvalidNodeError) Error() string {
-	return fmt.Sprintf("pager returned an invalid node")
-}
-
 type UnregisteredError struct{}
 
 func (err *UnregisteredError) Error() string {
@@ -111,69 +104,4 @@ type PartialWriteError struct {
 
 func (err *PartialWriteError) Error() string {
 	return fmt.Sprintf("partial write: %d/%d", err.Written, err.Total)
-}
-
-type PartialReadError struct {
-	Total int
-	Read  int
-}
-
-func (err *PartialReadError) Error() string {
-	return fmt.Sprintf("partial read: %d/%d", err.Read, err.Total)
-}
-
-type FrameOverflowError struct {
-	Max interface{}
-}
-
-func (err *FrameOverflowError) Error() string {
-	return fmt.Sprintf("frame overflow: max %v", err.Max)
-}
-
-type InvalidFrameIdError struct{}
-
-func (err *InvalidFrameIdError) Error() string {
-	return "the frame id provided is invalid"
-}
-
-type InvalidMetadataError struct {
-	Root interface{}
-	Size interface{}
-}
-
-func (err *InvalidMetadataError) Error() string {
-	return fmt.Sprintf("invalid metadata: root %v, size %v", err.Root, err.Size)
-}
-
-type BufferPoolLimitError struct {
-	Limit interface{}
-}
-
-func (err *BufferPoolLimitError) Error() string {
-	return fmt.Sprintf("buffer pool limit reached: %v", err.Limit)
-}
-
-type InvalidNodeIOError struct {
-	Node   interface{}
-	Cursor interface{}
-}
-
-func (err *InvalidNodeIOError) Error() string {
-	return fmt.Sprintf("invalid node io: node %v, cursor %v", err.Node, err.Cursor)
-}
-
-type UnspecifiedFileError struct{}
-
-func (err *UnspecifiedFileError) Error() string {
-	return "unspecified file: please specify a file"
-}
-
-type OutsideOfRangeError struct {
-	From   interface{}
-	To     interface{}
-	Actual interface{}
-}
-
-func (err *OutsideOfRangeError) Error() string {
-	return fmt.Sprintf("value %v is outside of range %v-%v", err.Actual, err.From, err.To)
 }
