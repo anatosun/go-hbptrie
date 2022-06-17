@@ -1,4 +1,4 @@
-# GO HB+Trie
+# Go HB+Trie
 
 ## Overview
 
