@@ -1,4 +1,4 @@
-# DMDS Lab 02
+# GO HB+Trie
 
 ## Overview
 
